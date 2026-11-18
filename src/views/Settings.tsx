@@ -10,7 +10,7 @@ import {
 } from '../state/actions';
 import { useStore } from '../state/store';
 import { CategoryIcon, Field, PageHeader, Section, Segmented, Toggle } from '../components/ui';
-import { AppSettings, SpendingBudgetSettings, StoresSettings } from './SettingsExtras';
+import { AppSettings, SpendingBudgetSettings, StoresSettings, SyncSettings } from './SettingsExtras';
 
 declare const __APP_VERSION__: string;
 
@@ -84,7 +84,7 @@ function CategoryRow({ category }: { category: Category }) {
 }
 
 export function Settings() {
-  const { data, apply, openModal, toast, saveFailed } = useStore();
+  const { data, apply, openModal, toast, saveFailed, sync } = useStore();
   const s = data.settings;
   const set = (patch: Partial<typeof s>) => apply((d) => updateSettings(d, patch));
   const [budget, setBudget] = useState(s.budget !== null ? String(s.budget) : '');
@@ -162,6 +162,10 @@ export function Settings() {
   return (
     <>
       <PageHeader title="Settings" />
+
+      <Section title="Sync across devices">
+        <SyncSettings />
+      </Section>
 
       <Section title="Appearance">
         <div className="card settings">
@@ -332,7 +336,8 @@ export function Settings() {
                 openModal({
                   type: 'confirm',
                   title: 'Clear all data?',
-                  body: 'This permanently deletes your shopping list, deferred items, recurring purchases, purchase history and settings from this device. Export a backup first if you might want them back.',
+                  body: 'This permanently deletes your shopping list, deferred items, recurring purchases, purchase history and settings from this device. Export a backup first if you might want them back.' +
+                    (sync.status !== 'off' ? ' Sync is on, so your other devices will be cleared too.' : ''),
                   confirmLabel: 'Clear everything',
                   danger: true,
                   onConfirm: () => { apply(clearAll); setBudget(''); toast('All data cleared'); },

@@ -1,4 +1,5 @@
-import { Bell, Ellipsis, ShoppingCart } from 'lucide-react';
+import { useEffect } from 'react';
+import { Bell, Cloud, CloudOff, Ellipsis, RefreshCw, ShoppingCart } from 'lucide-react';
 import { ModalHost, Toasts } from './components/Modals';
 import { NAV, PRIMARY_NAV, SECONDARY_NAV } from './components/nav';
 import { StoreProvider, useStore } from './state/store';
@@ -41,7 +42,13 @@ const VIEW: Record<Exclude<ViewId, 'shop'>, () => React.JSX.Element> = {
 };
 
 function Shell() {
-  const { view, go, data, today, alerts, openModal, saveFailed } = useStore();
+  const { view, go, data, today, alerts, openModal, saveFailed, sync, toast } = useStore();
+
+  // A sync conflict needs a decision, wherever in the app the user happens to be.
+  const conflicted = sync.status === 'conflict';
+  useEffect(() => {
+    if (conflicted) toast('Sync needs your choice', { label: 'Review', run: () => go('settings') });
+  }, [conflicted, toast, go]);
 
   if (view === 'shop') {
     return (
@@ -84,6 +91,18 @@ function Shell() {
       <div className="main">
         <header className="topbar">
           <div className="brand brand-mobile"><Logo /> Replenish</div>
+          {sync.status !== 'off' && (
+            <button
+              type="button"
+              className={`icon-btn sync-btn ${sync.status === 'error' || sync.status === 'conflict' ? 'is-problem' : ''}`}
+              aria-label={
+                sync.status === 'syncing' ? 'Syncing' : sync.status === 'conflict' ? 'Sync needs your choice' : sync.status === 'error' ? 'Sync problem' : 'Synced'
+              }
+              onClick={() => go('settings')}
+            >
+              {sync.status === 'syncing' ? <RefreshCw size={19} className="spin" /> : sync.status === 'idle' ? <Cloud size={20} /> : <CloudOff size={20} />}
+            </button>
+          )}
           <button
             type="button"
             className="icon-btn bell"

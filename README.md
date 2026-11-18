@@ -21,6 +21,7 @@ It is a client-side React app. There is no backend, account or paid API: everyth
 - **Price tracking**: a usual price per product, price history, and flags on purchases well above or below the usual price.
 - **Spending budgets**: weekly or monthly limits, overall and per category, tracked against what you actually spend.
 - **Stores**: assign items to stores and set each store's aisle order.
+- **Sync across your devices**: keeps your phone, tablet and computer in step through a private file in your own GitHub account. No extra service or account.
 - **Installable and offline**: add it to your Home Screen and it opens like an app and works without a connection.
 - **Settings**: currency (AUD by default), date format, 24-hour time, light and dark themes, budgets, stores, categories, notification preferences, JSON export and import, demo data, and clear all data.
 
@@ -76,10 +77,27 @@ The installed app opens full-screen and works offline. Camera scanning and devic
 
 **About notifications**: device notifications and the app-icon badge update when you open or return to the app. Alerts that arrive while the app is closed need a push server, which this serverless app does not have.
 
+## Syncing across your devices
+
+Sync is optional and is set up in **Settings > Sync across devices**. Your data is stored as a secret gist in your own GitHub account, and each device signs in with a personal access token.
+
+1. On GitHub, create a fine-grained personal access token at **Settings > Developer settings > Personal access tokens > Fine-grained tokens**.
+2. Under **Account permissions**, set **Gists** to **Read and write**. No repository access is needed.
+3. Paste the token into Replenish on each device and choose **Turn on sync**. The first device creates the sync file; later devices find it automatically.
+
+How it behaves:
+
+- It syncs when you open the app, when you return to it, a few seconds after each change, and every couple of minutes while open.
+- It is designed for one person's devices. The whole data file is uploaded or downloaded each time, not individual edits.
+- If two devices both change while out of contact, Replenish does not overwrite either. It asks whether to combine both, keep this device's copy, or use the other device's. Combining keeps everything from both, so something deleted on one device can reappear.
+- Settings (theme, currency, budgets and so on) sync along with everything else.
+- The token is kept only in that browser's storage, separately from your data. It is never written to the sync file or to exported backups. It can only reach your gists, and you can revoke it on GitHub at any time. Tokens expire on the date you chose, after which you paste a new one.
+- A "secret" gist is unlisted, not encrypted: anyone who obtains its URL can read it. Do not share the Sync ID.
+
 ## Your data
 
 - Data is saved automatically to the browser's LocalStorage under the key `replenish:data`, and survives refreshes and restarts.
-- It stays on the device and browser you use. Use **Settings > Backup and data > Export JSON** to back it up or move it to another device, and **Import JSON** to restore it.
+- Unless you turn on sync, it stays on the device and browser you use. Use **Settings > Backup and data > Export JSON** to back it up or move it to another device, and **Import JSON** to restore it.
 - Everything read from storage or an import file is validated. Invalid records are dropped and invalid fields fall back to sensible defaults.
 - Saved data carries a version number, and `migrate()` in `src/lib/storage.ts` upgrades older shapes.
 - Demo data is optional. Every demo record is flagged so **Remove demo data** deletes only those, never your own.
@@ -114,10 +132,10 @@ src/
   test/               Logic tests and app-level tests
 ```
 
-### Adding a cloud database later
+### Moving to a cloud database later
 
-The UI never touches storage directly. All persistence goes through the `StorageAdapter` interface in `src/lib/storage.ts`, and all changes go through the pure functions in `src/state/actions.ts`. To add sync and sign-in, implement a second adapter (for example backed by Supabase or Firebase) and load and save through it in `src/state/store.tsx`; the screens do not need to change.
+The UI never touches storage directly. All persistence goes through the `StorageAdapter` interface in `src/lib/storage.ts`, all changes go through the pure functions in `src/state/actions.ts`, and device sync lives in `src/lib/sync.ts` and `src/state/useSync.ts`. To share a list between people, replace the gist calls in `src/lib/sync.ts` with a real backend (for example Supabase or Firebase) and add per-record merging; the screens do not need to change.
 
 ## Tech
 
-React, TypeScript, Vite, plain CSS with custom properties, Lucide icons, Vitest and Testing Library. Barcode reading uses the browser's built-in detector where available and the ZXing library otherwise, loaded only when you scan. The heading typeface (Bricolage Grotesque) is bundled. The app makes no third-party requests unless you switch on online barcode lookup, which sends the barcode number to Open Food Facts.
+React, TypeScript, Vite, plain CSS with custom properties, Lucide icons, Vitest and Testing Library. Barcode reading uses the browser's built-in detector where available and the ZXing library otherwise, loaded only when you scan. The heading typeface (Bricolage Grotesque) is bundled. The app makes no third-party requests unless you switch on sync (GitHub) or online barcode lookup (which sends the barcode number to Open Food Facts).

@@ -654,3 +654,16 @@ main:focus { outline: none; }
   .row-tight .icon-btn { width: 34px; }
   .row-tight .price-btn { padding: 0 4px; }
 }
+
+/* ---------- sync ---------- */
+.topbar .brand { margin-right: auto; }
+.sync-btn.is-problem { color: var(--alert); }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.sync-intro { display: grid; gap: 10px; padding: 12px 0; color: var(--ink-2); }
+.sync-intro a { color: var(--accent); font-weight: 600; }
+.steps { list-style: decimal; padding-left: 22px; display: grid; gap: 6px; }
+.settings > form.setting-block { padding: 14px 0; }
+.conflict { display: grid; gap: 10px; padding: 14px; margin: 8px 0; border-radius: 14px; background: var(--warn-soft); border: 0; }
+.conflict p { color: var(--ink-2); font-size: 14.5px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }

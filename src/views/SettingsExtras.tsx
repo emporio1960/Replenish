@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash } from 'lucide-react';
 import type { Store } from '../types';
 import { storeCategoryOrder } from '../lib/categories';
+import { formatDate, formatTime } from '../lib/dates';
 import { parseNumber, plural } from '../lib/format';
 import { deviceNotificationState, requestDeviceNotifications } from '../lib/notify';
 import { addStore, deleteStore, moveAisle, renameStore, updateSettings } from '../state/actions';
@@ -208,6 +209,124 @@ export function AppSettings() {
         checked={s.barcodeLookup}
         onChange={(barcodeLookup) => apply((d) => updateSettings(d, { barcodeLookup }))}
       />
+    </div>
+  );
+}
+
+const TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
+
+export function SyncSettings() {
+  const { sync, data, toast } = useStore();
+  const [token, setToken] = useState('');
+  const [syncId, setSyncId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const { dateFormat, time24 } = data.settings;
+
+  async function connect() {
+    setBusy(true);
+    setError('');
+    const problem = await sync.connect(token, syncId);
+    setBusy(false);
+    if (problem) setError(problem);
+    else {
+      setToken('');
+      setSyncId('');
+      toast('Sync is on for this device');
+    }
+  }
+
+  if (sync.status === 'off') {
+    return (
+      <div className="card settings">
+        <div className="setting-block sync-intro">
+          <p>
+            Keep Replenish in step across your own devices. Your data is saved as a private file (a secret gist) in
+            your GitHub account, and each device signs in with an access token.
+          </p>
+          <ol className="steps">
+            <li>
+              Open <a href={TOKEN_URL} target="_blank" rel="noreferrer">GitHub's new token page</a> and give the token a name such as Replenish.
+            </li>
+            <li>Under Account permissions, set <strong>Gists</strong> to <strong>Read and write</strong>. Nothing else is needed.</li>
+            <li>Choose an expiry, generate the token, copy it and paste it here.</li>
+            <li>Repeat the paste on each device, using the same token or a new one.</li>
+          </ol>
+        </div>
+        <form className="setting-block form" onSubmit={(e) => { e.preventDefault(); void connect(); }}>
+          <Field label="GitHub access token" error={error}>
+            <input
+              type="password"
+              value={token}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="github_pat_…"
+              onChange={(e) => { setToken(e.target.value); setError(''); }}
+            />
+          </Field>
+          <details className="why">
+            <summary>Have a Sync ID from another device?</summary>
+            <p>Normally Replenish finds your sync file by itself. If it does not, copy the Sync ID shown on your first device and paste it here.</p>
+            <Field label="Sync ID (optional)">
+              <input value={syncId} autoComplete="off" spellCheck={false} onChange={(e) => setSyncId(e.target.value)} />
+            </Field>
+          </details>
+          <button type="submit" className="btn btn-primary" disabled={busy || !token.trim()}>
+            {busy ? 'Connecting…' : 'Turn on sync'}
+          </button>
+          <p className="fine">
+            The token is stored only in this browser and is never included in backups. It can only reach your gists,
+            and you can revoke it on GitHub at any time.
+          </p>
+        </form>
+      </div>
+    );
+  }
+
+  const when = sync.lastSyncedAt
+    ? `${formatDate(sync.lastSyncedAt, dateFormat)} at ${formatTime(sync.lastSyncedAt, time24)}`
+    : 'Not yet';
+  return (
+    <div className="card settings">
+      {sync.status === 'conflict' && (
+        <div className="setting-block conflict" role="alert">
+          <strong>This device and another device have both changed since they last synced.</strong>
+          <p>Choose which copy to keep. Combining keeps everything from both, so something you deleted on one device may come back.</p>
+          <div className="row-wrap">
+            <button type="button" className="btn btn-primary" onClick={() => sync.resolve('combine')}>Combine both</button>
+            <button type="button" className="btn" onClick={() => sync.resolve('mine')}>Keep this device's</button>
+            <button type="button" className="btn" onClick={() => sync.resolve('theirs')}>Use the other device's</button>
+          </div>
+        </div>
+      )}
+      {sync.status === 'error' && <p className="banner" role="alert">{sync.error} Your changes are safe on this device and will sync when this is fixed.</p>}
+      <dl className="facts">
+        <div><dt>GitHub account</dt><dd>{sync.account || 'Connected'}</dd></div>
+        <div>
+          <dt>Status</dt>
+          <dd>
+            {sync.status === 'syncing' ? 'Syncing…' : sync.status === 'conflict' ? 'Waiting for your choice' : sync.status === 'error' ? 'Not syncing' : 'Up to date'}
+          </dd>
+        </div>
+        <div><dt>Last synced</dt><dd>{when}</dd></div>
+        <div><dt>Sync ID</dt><dd className="mono">{sync.gistId}</dd></div>
+      </dl>
+      <div className="setting">
+        <span className="setting-label">
+          Syncs automatically
+          <span className="toggle-desc">When you open the app, return to it, and a few seconds after each change.</span>
+        </span>
+        <div className="row-wrap">
+          <button type="button" className="btn" disabled={sync.status === 'syncing' || sync.status === 'conflict'} onClick={sync.syncNow}>Sync now</button>
+          <button
+            type="button"
+            className="btn btn-quiet danger-text"
+            onClick={() => { sync.disconnect(); toast('Sync is off for this device. Your data stays here and in GitHub.'); }}
+          >
+            Turn off
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

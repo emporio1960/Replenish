@@ -16,6 +16,7 @@ import { buildRecommendations, type Recommendation } from '../lib/replenishment'
 import { loadData, saveData } from '../lib/storage';
 import { uid } from '../lib/format';
 import { processDue, type ItemInput, type RecurringInput } from './actions';
+import { useSync, type SyncApi } from './useSync';
 
 export type ModalState =
   | { type: 'item'; item?: ShoppingItem; preset?: Partial<ItemInput> }
@@ -55,6 +56,7 @@ interface StoreValue {
   toast: (message: string, action?: Toast['action']) => void;
   dismissToast: (id: string) => void;
   saveFailed: boolean;
+  sync: SyncApi;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -77,6 +79,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [saveFailed, setSaveFailed] = useState(false);
   const timers = useRef(new Map<string, number>());
+
+  const sync = useSync(data, setData);
 
   const apply = useCallback((fn: (d: AppData) => AppData) => setData((d) => fn(d)), []);
 
@@ -185,9 +189,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       data, today, recs, alerts, apply, view, go,
       modal, openModal: setModal, closeModal,
-      toasts, toast, dismissToast, saveFailed,
+      toasts, toast, dismissToast, saveFailed, sync,
     }),
-    [data, today, recs, alerts, apply, view, go, modal, closeModal, toasts, toast, dismissToast, saveFailed],
+    [data, today, recs, alerts, apply, view, go, modal, closeModal, toasts, toast, dismissToast, saveFailed, sync],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
