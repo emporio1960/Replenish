@@ -9,15 +9,18 @@ import type {
   Frequency,
   Priority,
   PurchaseRecord,
+  Recipe,
   RecurringPurchase,
   ReplenishPref,
   Settings,
   ShoppingItem,
   Unit,
 } from '../types';
-import { CUSTOM_COLORS, OTHER_CATEGORY_ID } from '../lib/categories';
+import { CUSTOM_COLORS, OTHER_CATEGORY_ID, storeCategoryOrder } from '../lib/categories';
 import { toDay } from '../lib/dates';
-import { normalizeName } from '../lib/duplicates';
+import { findDuplicates, normalizeName } from '../lib/duplicates';
+import type { ParsedLine } from '../lib/parseList';
+import { buildItemStats } from '../lib/replenishment';
 import { uid } from '../lib/format';
 import { advance, skipFrom } from '../lib/recurrence';
 import { buildSampleData } from '../lib/sampleData';
@@ -32,6 +35,7 @@ export interface ItemInput {
   notes?: string;
   priority: Priority;
   recurringId?: string;
+  storeId?: string;
 }
 
 export interface RecurringInput {
@@ -73,6 +77,7 @@ export function addItem(data: AppData, input: ItemInput, now: Date, id: string =
     createdAt: now.toISOString(),
     deferCount: 0,
     recurringId: input.recurringId,
+    storeId: input.storeId,
   };
   return { ...data, onboarded: true, items: [...data.items, item] };
 }
@@ -379,10 +384,15 @@ export function deleteCategory(data: AppData, id: string): AppData {
     items: data.items.map(move),
     recurring: data.recurring.map(move),
     history: data.history.map(move),
-    settings:
-      data.settings.defaultCategoryId === id
-        ? { ...data.settings, defaultCategoryId: OTHER_CATEGORY_ID }
-        : data.settings,
+    stores: data.stores.map((s) => ({ ...s, aisleOrder: s.aisleOrder.filter((c) => c !== id) })),
+    settings: {
+      ...data.settings,
+      defaultCategoryId: data.settings.defaultCategoryId === id ? OTHER_CATEGORY_ID : data.settings.defaultCategoryId,
+      spendingBudget: {
+        ...data.settings.spendingBudget,
+        byCategory: Object.fromEntries(Object.entries(data.settings.spendingBudget.byCategory).filter(([c]) => c !== id)),
+      },
+    },
   };
 }
 
@@ -412,6 +422,88 @@ export function setHistoryPrice(data: AppData, id: string, price: number | undef
   };
 }
 
+/* ---------- quick entry: pasted lists, recipes, barcodes ---------- */
+
+/**
+ * Adds several typed lines at once. Each takes its category and usual price
+ * from purchase history where the product is known. Anything already on the
+ * list (or deferred) is skipped rather than duplicated.
+ */
+export function addParsed(data: AppData, lines: ParsedLine[], now: Date): AppData {
+  const known = new Map(buildItemStats(data.history).map((s) => [s.key, s]));
+  let next = data;
+  for (const line of lines) {
+    if (findDuplicates(line.name, next.items).length) continue;
+    const stats = known.get(normalizeName(line.name));
+    const schedule = data.recurring.find((r) => normalizeName(r.name) === normalizeName(line.name));
+    const price =
+      stats?.usualUnitPrice !== undefined && stats.unit === line.unit
+        ? Math.round(stats.usualUnitPrice * line.quantity * 100) / 100
+        : undefined;
+    next = addItem(
+      next,
+      {
+        ...line,
+        estimatedPrice: price,
+        categoryId: stats?.categoryId ?? schedule?.categoryId ?? data.settings.defaultCategoryId,
+        priority: 'normal',
+      },
+      now,
+    );
+  }
+  return next;
+}
+
+export function saveRecipe(data: AppData, recipe: Recipe): AppData {
+  const exists = data.recipes.some((r) => r.id === recipe.id);
+  return {
+    ...data,
+    onboarded: true,
+    recipes: exists ? data.recipes.map((r) => (r.id === recipe.id ? recipe : r)) : [...data.recipes, recipe],
+  };
+}
+
+export function deleteRecipe(data: AppData, id: string): AppData {
+  return { ...data, recipes: data.recipes.filter((r) => r.id !== id) };
+}
+
+/** Remembers which product a barcode belongs to, so the next scan is instant. */
+export function learnBarcode(data: AppData, code: string, name: string): AppData {
+  return data.barcodes[code] === name ? data : { ...data, barcodes: { ...data.barcodes, [code]: name.trim() } };
+}
+
+/* ---------- stores ---------- */
+
+export function addStore(data: AppData, name: string): AppData {
+  return { ...data, stores: [...data.stores, { id: `store-${uid()}`, name: name.trim(), aisleOrder: [] }] };
+}
+
+export function renameStore(data: AppData, id: string, name: string): AppData {
+  return { ...data, stores: data.stores.map((s) => (s.id === id ? { ...s, name } : s)) };
+}
+
+/** Deletes a store. Items assigned to it become "any store". */
+export function deleteStore(data: AppData, id: string): AppData {
+  return {
+    ...data,
+    stores: data.stores.filter((s) => s.id !== id),
+    items: data.items.map((i) => (i.storeId === id ? { ...i, storeId: undefined } : i)),
+    settings: data.settings.shoppingStoreId === id ? { ...data.settings, shoppingStoreId: null } : data.settings,
+  };
+}
+
+/** Moves a category one place earlier (-1) or later (+1) in a store's aisle order. */
+export function moveAisle(data: AppData, storeId: string, categoryId: string, direction: -1 | 1): AppData {
+  const store = data.stores.find((s) => s.id === storeId);
+  if (!store) return data;
+  const order = storeCategoryOrder(store, data.categories).map((c) => c.id);
+  const from = order.indexOf(categoryId);
+  const to = from + direction;
+  if (from < 0 || to < 0 || to >= order.length) return data;
+  [order[from], order[to]] = [order[to], order[from]];
+  return { ...data, stores: data.stores.map((s) => (s.id === storeId ? { ...s, aisleOrder: order } : s)) };
+}
+
 /* ---------- notices ---------- */
 
 export function dismissNotice(data: AppData, id: string): AppData {
@@ -434,6 +526,8 @@ export function loadSample(data: AppData, now: Date): AppData {
     recurring: [...without.recurring, ...sample.recurring],
     history: [...without.history, ...sample.history],
     deferrals: [...without.deferrals, ...sample.deferrals],
+    stores: [...without.stores, ...sample.stores],
+    recipes: [...without.recipes, ...sample.recipes],
   };
 }
 
@@ -442,18 +536,28 @@ export function hasSample(data: AppData): boolean {
     data.items.some((i) => i.sample) ||
     data.recurring.some((r) => r.sample) ||
     data.history.some((h) => h.sample) ||
-    data.deferrals.some((d) => d.sample)
+    data.deferrals.some((d) => d.sample) ||
+    data.stores.some((s) => s.sample) ||
+    data.recipes.some((r) => r.sample)
   );
 }
 
 /** Removes demonstration records only. Anything the user created stays. */
 export function removeSample(data: AppData): AppData {
   const goneRecurring = new Set(data.recurring.filter((r) => r.sample).map((r) => r.id));
+  const goneStores = new Set(data.stores.filter((s) => s.sample).map((s) => s.id));
   return {
     ...data,
     items: data.items
       .filter((i) => !i.sample)
-      .map((i) => (i.recurringId && goneRecurring.has(i.recurringId) ? { ...i, recurringId: undefined } : i)),
+      .map((i) => (i.recurringId && goneRecurring.has(i.recurringId) ? { ...i, recurringId: undefined } : i))
+      .map((i) => (i.storeId && goneStores.has(i.storeId) ? { ...i, storeId: undefined } : i)),
+    stores: data.stores.filter((s) => !s.sample),
+    recipes: data.recipes.filter((r) => !r.sample),
+    settings:
+      data.settings.shoppingStoreId && goneStores.has(data.settings.shoppingStoreId)
+        ? { ...data.settings, shoppingStoreId: null }
+        : data.settings,
     recurring: data.recurring.filter((r) => !r.sample),
     history: data.history.filter((h) => !h.sample),
     deferrals: data.deferrals.filter((d) => !d.sample),

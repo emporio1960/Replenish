@@ -1,5 +1,5 @@
 import type { AppData, RecurringPurchase, ViewId } from '../types';
-import { listTotals } from './analytics';
+import { budgetStatus, listTotals } from './analytics';
 import { addDays, diffDays, pluralDays, relativeDay } from './dates';
 import { formatMoney, plural, times } from './format';
 import { frequencyLabel } from './recurrence';
@@ -9,7 +9,7 @@ export type Tone = 'neutral' | 'good' | 'warn' | 'alert';
 
 export interface Insight {
   id: string;
-  icon: 'replenish' | 'pattern' | 'deferred' | 'recurring' | 'budget' | 'progress' | 'return';
+  icon: 'replenish' | 'pattern' | 'deferred' | 'recurring' | 'budget' | 'progress' | 'return' | 'spend';
   text: string;
   tone: Tone;
   view: ViewId;
@@ -115,6 +115,22 @@ export function buildInsights(data: AppData, todayStr: string, recs: Recommendat
     });
   }
 
+  const spending = budgetStatus(data, todayStr);
+  const overall = spending.lines.find((l) => l.id === 'total');
+  if (overall) {
+    const over = overall.spent - overall.budget;
+    out.push({
+      id: 'spend',
+      icon: 'spend',
+      tone: over > 0 ? 'alert' : 'neutral',
+      view: 'analytics',
+      text:
+        over > 0
+          ? `You have spent ${formatMoney(overall.spent, currency)} this ${spending.period}, ${formatMoney(over, currency)} over your budget.`
+          : `You have spent ${formatMoney(overall.spent, currency)} of your ${formatMoney(overall.budget, currency)} budget this ${spending.period}.`,
+    });
+  }
+
   if (active.length === 0 && purchased.length > 0) {
     out.push({
       id: 'progress',
@@ -199,6 +215,19 @@ export function buildAlerts(data: AppData, todayStr: string, recs: Recommendatio
       tone: 'alert',
       view: 'list',
     });
+  }
+  if (prefs.budget) {
+    const spending = budgetStatus(data, todayStr);
+    for (const line of spending.lines) {
+      if (line.spent <= line.budget) continue;
+      out.push({
+        id: `spend-${line.id}`,
+        title: line.id === 'total' ? `Over your ${spending.period}ly budget` : `${line.label}: over budget`,
+        body: `${formatMoney(line.spent, currency)} spent this ${spending.period} against a budget of ${formatMoney(line.budget, currency)}.`,
+        tone: 'alert',
+        view: 'analytics',
+      });
+    }
   }
   return out;
 }

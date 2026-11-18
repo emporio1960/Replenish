@@ -180,3 +180,30 @@ export function listTotals(data: AppData): { remaining: number; purchased: numbe
   }
   return { remaining, purchased, total: remaining + purchased, unpriced };
 }
+
+export interface BudgetLine {
+  id: string;
+  label: string;
+  spent: number;
+  budget: number;
+}
+
+/** Actual spending so far this week or month against the budgets set in Settings. */
+export function budgetStatus(data: AppData, todayStr: string): { period: 'week' | 'month'; start: string; lines: BudgetLine[] } {
+  const { period, total, byCategory } = data.settings.spendingBudget;
+  const start = period === 'week' ? startOfWeek(todayStr) : startOfMonth(todayStr);
+  const spent = new Map<string, number>();
+  let all = 0;
+  for (const r of data.history) {
+    if (asDay(r.purchasedAt) < start || r.price === undefined) continue;
+    all += r.price;
+    spent.set(r.categoryId, (spent.get(r.categoryId) ?? 0) + r.price);
+  }
+  const lines: BudgetLine[] = [];
+  if (total !== null) lines.push({ id: 'total', label: 'All spending', spent: all, budget: total });
+  for (const c of data.categories) {
+    const budget = byCategory[c.id];
+    if (budget) lines.push({ id: c.id, label: c.name, spent: spent.get(c.id) ?? 0, budget });
+  }
+  return { period, start, lines };
+}

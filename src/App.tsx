@@ -6,6 +6,7 @@ import { Analytics } from './views/Analytics';
 import { Dashboard } from './views/Dashboard';
 import { Deferred } from './views/Deferred';
 import { History } from './views/History';
+import { Meals } from './views/Meals';
 import { Recurring } from './views/Recurring';
 import { Settings } from './views/Settings';
 import { ShoppingList } from './views/ShoppingList';
@@ -33,6 +34,7 @@ const VIEW: Record<Exclude<ViewId, 'shop'>, () => React.JSX.Element> = {
   deferred: Deferred,
   recurring: Recurring,
   suggestions: Suggestions,
+  meals: Meals,
   history: History,
   analytics: Analytics,
   settings: Settings,

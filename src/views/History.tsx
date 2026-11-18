@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Pencil, Plus, ReceiptText, Repeat, Search, Trash } from 'lucide-react';
+import { Pencil, Plus, ReceiptText, Repeat, Search, Trash, TrendingDown, TrendingUp } from 'lucide-react';
 import type { PurchaseRecord } from '../types';
 import { defaultRange, filterHistory, type RangeFilter } from '../lib/analytics';
 import { categoryById } from '../lib/categories';
 import { asDay, formatDate, formatTime, longDate } from '../lib/dates';
 import { formatMoney, formatQty, plural } from '../lib/format';
+import { buildItemStats, priceFlag } from '../lib/replenishment';
 import { addItem, deleteHistory } from '../state/actions';
 import { useStore } from '../state/store';
 import { RangeControls } from '../components/RangeControls';
@@ -16,6 +17,7 @@ export function History() {
   const [filter, setFilter] = useState<RangeFilter>(() => defaultRange(today));
   const [query, setQuery] = useState('');
 
+  const stats = new Map(buildItemStats(data.history).map((s) => [s.key, s]));
   const q = query.trim().toLowerCase();
   const records = filterHistory(data.history, filter, today)
     .filter((r) => q === '' || r.name.toLowerCase().includes(q))
@@ -80,17 +82,27 @@ export function History() {
                 </h2>
                 <ul className="card rows">
                   {list.map((r) => (
-                    <li key={r.id} className="row">
-                      <CategoryIcon category={categoryById(data.categories, r.categoryId)} size={32} />
+                    <li key={r.id} className="row row-tight">
+                      <span className="hide-s"><CategoryIcon category={categoryById(data.categories, r.categoryId)} size={32} /></span>
                       <div className="row-body">
-                        <span className="row-title">{r.name}</span>
+                        <button type="button" className="row-title title-link" onClick={() => openModal({ type: 'product', productKey: r.key })}>
+                          {r.name}
+                        </button>
                         <span className="row-meta">
                           <span>{formatQty(r.quantity, r.unit)}</span>
                           <span>{formatTime(r.purchasedAt, time24)}</span>
                           <span className="hide-s">{categoryById(data.categories, r.categoryId).name}</span>
                         </span>
-                        {r.recurring && (
-                          <span className="row-chips"><Chip tone="accent"><Repeat size={12} aria-hidden="true" /> Recurring</Chip></span>
+                        {(r.recurring || priceFlag(r.price, r.quantity, r.unit, stats.get(r.key))) && (
+                          <span className="row-chips">
+                            {r.recurring && <Chip tone="accent"><Repeat size={12} aria-hidden="true" /> Recurring</Chip>}
+                            {priceFlag(r.price, r.quantity, r.unit, stats.get(r.key)) === 'above' && (
+                              <Chip tone="warn"><TrendingUp size={12} aria-hidden="true" /> Above usual price</Chip>
+                            )}
+                            {priceFlag(r.price, r.quantity, r.unit, stats.get(r.key)) === 'below' && (
+                              <Chip tone="good"><TrendingDown size={12} aria-hidden="true" /> Below usual price</Chip>
+                            )}
+                          </span>
                         )}
                       </div>
                       <button

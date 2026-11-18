@@ -9,6 +9,7 @@ import {
 } from '../state/actions';
 import { useStore } from '../state/store';
 import { DeferSheet } from './DeferSheet';
+import { PasteList, ProductModal, RecipeForm, ScanModal } from './Extras';
 import { ItemForm } from './ItemForm';
 import { RecurringForm } from './RecurringForm';
 import { SECONDARY_NAV } from './nav';
@@ -69,6 +70,9 @@ function AdjustInterval({ productKey }: { productKey: string }) {
   const rec = recs.find((r) => r.key === productKey);
   const [days, setDays] = useState(String(rec?.usedInterval ?? 7));
   const [error, setError] = useState('');
+  const saved = data.replenishPrefs[productKey]?.stock;
+  const [stock, setStock] = useState(saved && rec && saved.unit === rec.unit && saved.day >= rec.lastPurchased ? String(saved.quantity) : '');
+  const [stockError, setStockError] = useState('');
   if (!rec) return null;
   const learned = Math.max(1, Math.round(rec.avgInterval ?? 7));
   return (
@@ -87,12 +91,23 @@ function AdjustInterval({ productKey }: { productKey: string }) {
                 setError('Enter a number of days between 1 and 730.');
                 return;
               }
-              apply((d) => setReplenishPref(d, productKey, { customIntervalDays: Math.round(n) }));
-              toast(`${rec.name} now estimated every ${pluralDays(Math.round(n))}`);
+              const have = parseNumber(stock);
+              if (have !== undefined && Number.isNaN(have)) {
+                setStockError('Enter a quantity, or leave it empty.');
+                return;
+              }
+              const changedInterval = Math.round(n) !== rec.usedInterval;
+              apply((d) =>
+                setReplenishPref(d, productKey, {
+                  ...(changedInterval ? { customIntervalDays: Math.round(n) } : {}),
+                  stock: have === undefined ? undefined : { quantity: have, unit: rec.unit, day: today },
+                }),
+              );
+              toast(`Saved the estimate for ${rec.name}`);
               closeModal();
             }}
           >
-            Save interval
+            Save
           </button>
         </>
       }
@@ -101,6 +116,13 @@ function AdjustInterval({ productKey }: { productKey: string }) {
         <p className="lead">{rec.explanation}</p>
         <Field label="Days between purchases" error={error} hint={`Learned from your history: ${pluralDays(learned)}`}>
           <input data-autofocus value={days} inputMode="numeric" onChange={(e) => { setDays(e.target.value); setError(''); }} />
+        </Field>
+        <Field
+          label={`How much do you have at home now? (${rec.unit})`}
+          error={stockError}
+          hint="Optional. Replenish then estimates when it runs out from this amount, until you next buy it."
+        >
+          <input value={stock} inputMode="decimal" placeholder="Not recorded" onChange={(e) => { setStock(e.target.value); setStockError(''); }} />
         </Field>
         <div className="stack">
           {data.replenishPrefs[productKey]?.customIntervalDays !== undefined && (
@@ -252,6 +274,14 @@ export function ModalHost() {
       return <PriceEditor historyId={modal.historyId} />;
     case 'alerts':
       return <AlertsPanel />;
+    case 'paste':
+      return <PasteList />;
+    case 'recipe':
+      return <RecipeForm key={modal.recipe?.id ?? 'new'} recipe={modal.recipe} />;
+    case 'product':
+      return <ProductModal productKey={modal.productKey} />;
+    case 'scan':
+      return <ScanModal />;
     case 'more':
       return <MoreSheet />;
     case 'confirm':

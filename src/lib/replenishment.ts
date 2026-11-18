@@ -22,6 +22,35 @@ export interface ItemStats {
   totalSpent: number;
   categoryId: string;
   lastPurchased: string;
+  /** Priced purchases in the product's usual unit, oldest first. */
+  prices: PricePoint[];
+  /** Median price per unit of quantity across those purchases. */
+  usualUnitPrice?: number;
+}
+
+export interface PricePoint {
+  day: string;
+  price: number;
+  quantity: number;
+  unitPrice: number;
+}
+
+function median(values: number[]): number {
+  const v = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(v.length / 2);
+  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+}
+
+export type PriceFlag = 'above' | 'below' | null;
+
+/** Compares a price with what the product usually costs per unit (15% either way). */
+export function priceFlag(
+  price: number | undefined, quantity: number, unit: Unit, stats: ItemStats | undefined,
+): PriceFlag {
+  if (price === undefined || !stats || stats.usualUnitPrice === undefined) return null;
+  if (stats.prices.length < 3 || unit !== stats.unit || quantity <= 0 || stats.usualUnitPrice <= 0) return null;
+  const ratio = price / quantity / stats.usualUnitPrice;
+  return ratio >= 1.15 ? 'above' : ratio <= 0.85 ? 'below' : null;
 }
 
 function mode(values: number[]): number {
@@ -60,6 +89,9 @@ export function buildItemStats(history: PurchaseRecord[]): ItemStats[] {
     const latest = records[records.length - 1];
     const priced = records.filter((r) => r.price !== undefined);
     const totalSpent = priced.reduce((s, r) => s + (r.price ?? 0), 0);
+    const prices: PricePoint[] = priced
+      .filter((r) => r.unit === latest.unit && r.quantity > 0)
+      .map((r) => ({ day: asDay(r.purchasedAt), price: r.price!, quantity: r.quantity, unitPrice: r.price! / r.quantity }));
     stats.push({
       key,
       name: latest.name,
@@ -75,6 +107,8 @@ export function buildItemStats(history: PurchaseRecord[]): ItemStats[] {
       totalSpent,
       categoryId: latest.categoryId,
       lastPurchased: days[days.length - 1],
+      prices,
+      usualUnitPrice: prices.length ? median(prices.map((x) => x.unitPrice)) : undefined,
     });
   }
   return stats.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
@@ -90,6 +124,8 @@ export interface Recommendation extends ItemStats {
   daysUntil: number;
   level: ReplenishLevel;
   onList: boolean;
+  /** Set when the estimate uses a quantity the user recorded as being at home. */
+  stock?: { quantity: number; day: string; remaining: number; perDay: number };
   /** Plain-language account of how the estimate was made. */
   explanation: string;
 }
@@ -119,7 +155,23 @@ export function buildRecommendations(data: AppData, todayStr: string): Recommend
     if (pref?.dismissedAtPurchase === s.lastPurchased) continue;
     const adjusted = pref?.customIntervalDays !== undefined;
     const usedInterval = adjusted ? pref!.customIntervalDays! : Math.max(1, Math.round(s.avgInterval));
-    const nextEstimated = addDays(s.lastPurchased, usedInterval);
+    let nextEstimated = addDays(s.lastPurchased, usedInterval);
+    // A stock count recorded since the last purchase beats a date-only guess.
+    const counted =
+      pref?.stock && pref.stock.unit === s.unit && pref.stock.day >= s.lastPurchased && s.typicalQuantity > 0
+        ? pref.stock
+        : undefined;
+    let stock: Recommendation['stock'];
+    if (counted) {
+      const perDay = s.typicalQuantity / usedInterval;
+      nextEstimated = addDays(counted.day, Math.floor(counted.quantity / perDay));
+      stock = {
+        quantity: counted.quantity,
+        day: counted.day,
+        perDay,
+        remaining: Math.max(0, counted.quantity - perDay * Math.max(0, diffDays(counted.day, todayStr))),
+      };
+    }
     const daysUntil = diffDays(todayStr, nextEstimated);
     const window = Math.max(2, Math.round(usedInterval * 0.25));
     const level: ReplenishLevel = daysUntil <= 0 ? 'due' : daysUntil <= window ? 'approaching' : 'low';
@@ -132,7 +184,10 @@ export function buildRecommendations(data: AppData, todayStr: string): Recommend
     const used = adjusted
       ? ` You set the interval to ${pluralDays(usedInterval)}.`
       : '';
-    const explanation = `${basis}${used} Last bought ${shortDate(s.lastPurchased)}, so the next purchase is estimated for ${shortDate(nextEstimated)}.`;
+    const round = (n: number) => Number(n.toFixed(2));
+    const explanation = stock
+      ? `${basis}${used} You recorded ${round(stock.quantity)} ${s.unit} at home on ${shortDate(stock.day)}. Using your usual ${round(s.typicalQuantity)} ${s.unit} every ${pluralDays(usedInterval)} (about ${round(stock.perDay)} ${s.unit} a day), that lasts until around ${shortDate(nextEstimated)}.`
+      : `${basis}${used} Last bought ${shortDate(s.lastPurchased)}, so the next purchase is estimated for ${shortDate(nextEstimated)}.`;
 
     out.push({
       ...s,
@@ -142,6 +197,7 @@ export function buildRecommendations(data: AppData, todayStr: string): Recommend
       daysUntil,
       level,
       onList: onList.has(s.key),
+      stock,
       explanation,
     });
   }

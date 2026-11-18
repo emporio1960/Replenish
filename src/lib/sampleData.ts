@@ -1,4 +1,4 @@
-import type { DeferralEvent, PurchaseRecord, RecurringPurchase, ShoppingItem, Unit } from '../types';
+import type { DeferralEvent, PurchaseRecord, Recipe, RecurringPurchase, ShoppingItem, Store, Unit } from '../types';
 import { addDays, parseDay } from './dates';
 import { normalizeName } from './duplicates';
 
@@ -47,6 +47,8 @@ export function buildSampleData(todayStr: string): {
   recurring: RecurringPurchase[];
   history: PurchaseRecord[];
   deferrals: DeferralEvent[];
+  stores: Store[];
+  recipes: Recipe[];
 } {
   const history: PurchaseRecord[] = [];
   PRODUCTS.forEach((p, pi) => {
@@ -123,5 +125,36 @@ export function buildSampleData(todayStr: string): {
     schedule('Cat litter', 1, 'packs', 15, 'pet', { kind: 'fortnightly' }, 9, 0, { paused: true, notes: 'Paused while the cat is at the neighbours' }),
   ];
 
-  return { items, recurring, history, deferrals };
+  const stores: Store[] = [
+    {
+      id: 'sample-s-market', name: 'Supermarket', sample: true,
+      aisleOrder: ['produce', 'bakery', 'meat', 'dairy', 'pantry', 'beverages', 'frozen', 'cleaning', 'personal', 'health', 'pet', 'other'],
+    },
+    { id: 'sample-s-chemist', name: 'Chemist', sample: true, aisleOrder: ['health', 'personal'] },
+  ];
+  items[6].storeId = 'sample-s-chemist';
+
+  const recipes: Recipe[] = [
+    {
+      id: 'sample-m-bolognese', name: 'Spaghetti bolognese', sample: true,
+      ingredients: [
+        { name: 'Beef mince', quantity: 500, unit: 'g' },
+        { name: 'Pasta', quantity: 1, unit: 'packs' },
+        { name: 'Tinned tomatoes', quantity: 2, unit: 'units' },
+        { name: 'Brown onion', quantity: 1, unit: 'units' },
+        { name: 'Garlic', quantity: 1, unit: 'units' },
+      ],
+    },
+    {
+      id: 'sample-m-curry', name: 'Chicken curry', sample: true,
+      ingredients: [
+        { name: 'Chicken thighs', quantity: 1, unit: 'kg' },
+        { name: 'Coconut milk', quantity: 1, unit: 'units' },
+        { name: 'Curry paste', quantity: 1, unit: 'units' },
+        { name: 'Basmati rice', quantity: 1, unit: 'kg' },
+      ],
+    },
+  ];
+
+  return { items, recurring, history, deferrals, stores, recipes };
 }

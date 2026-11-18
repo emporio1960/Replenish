@@ -9,3 +9,17 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+// Remember the browser's install offer so Settings can show an Install button.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  (window as unknown as { __installPrompt?: Event }).__installPrompt = e;
+  window.dispatchEvent(new Event('replenish:installable'));
+});
+
+// Offline support. Some embedded hosts refuse service workers; the app works without one.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
+  });
+}

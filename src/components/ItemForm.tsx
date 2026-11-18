@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Repeat } from 'lucide-react';
 import { PRIORITIES, UNITS, type FrequencyKind, type Priority, type ShoppingItem, type Unit } from '../types';
-import { findDuplicates } from '../lib/duplicates';
-import { formatQty, parseNumber, uid } from '../lib/format';
+import { findDuplicates, normalizeName } from '../lib/duplicates';
+import { buildItemStats, type ItemStats } from '../lib/replenishment';
+import { formatMoney, formatQty, parseNumber, uid } from '../lib/format';
 import { FREQUENCIES } from '../lib/recurrence';
 import { addItem, addRecurring, updateItem, type ItemInput } from '../state/actions';
 import { useStore } from '../state/store';
@@ -21,6 +22,26 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
   const [categoryId, setCategoryId] = useState(base.categoryId ?? data.settings.defaultCategoryId);
   const [priority, setPriority] = useState<Priority>(base.priority ?? 'normal');
   const [notes, setNotes] = useState(base.notes ?? '');
+  const [storeId, setStoreId] = useState(base.storeId ?? '');
+
+  // Suggest products you have bought before, filling in the usual details.
+  const stats = useMemo(() => buildItemStats(data.history), [data.history]);
+  const typed = normalizeName(name);
+  const matches = item || typed.length < 2
+    ? []
+    : stats
+        .filter((s) => s.key !== typed && s.key.includes(typed))
+        .sort((a, b) => Number(b.key.startsWith(typed)) - Number(a.key.startsWith(typed)) || b.count - a.count)
+        .slice(0, 4);
+  const known = item ? undefined : stats.find((s) => s.key === typed);
+
+  function fill(s: ItemStats) {
+    setName(s.name);
+    setQuantity(String(s.typicalQuantity));
+    setUnit(s.unit);
+    setCategoryId(s.categoryId);
+    setPrice(s.usualUnitPrice !== undefined ? (s.usualUnitPrice * s.typicalQuantity).toFixed(2) : '');
+  }
   const [repeat, setRepeat] = useState(false);
   const [freq, setFreq] = useState<FrequencyKind>('weekly');
   const [every, setEvery] = useState('10');
@@ -54,6 +75,7 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
       notes,
       priority,
       recurringId: preset?.recurringId,
+      storeId: storeId || undefined,
     };
   }
 
@@ -73,6 +95,7 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
         ? updateItem(d, id, {
             name: input.name, quantity: input.quantity, unit: input.unit, estimatedPrice: input.estimatedPrice,
             categoryId: input.categoryId, notes: input.notes?.trim() || undefined, priority: input.priority,
+            storeId: input.storeId,
             ...(purchased ? { actualPrice: parseNumber(paid) } : {}),
           })
         : addItem(d, input, now, id);
@@ -162,6 +185,23 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
             aria-invalid={Boolean(errors.name)}
           />
         </Field>
+        {matches.length > 0 && (
+          <div className="suggest" role="group" aria-label="Products you have bought before">
+            {matches.map((s) => (
+              <button key={s.key} type="button" onClick={() => fill(s)}>
+                <strong>{s.name}</strong>
+                <span>{formatQty(s.typicalQuantity, s.unit)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {known && (
+          <p className="note">
+            You usually buy {formatQty(known.typicalQuantity, known.unit)}
+            {known.usualUnitPrice !== undefined ? ` for about ${formatMoney(known.usualUnitPrice * known.typicalQuantity, data.settings.currency)}` : ''}.
+            <button type="button" className="link" onClick={() => fill(known)}>Use these</button>
+          </p>
+        )}
         <div className="form-row">
           <Field label="Quantity" error={errors.quantity}>
             <input value={quantity} inputMode="decimal" onChange={(e) => setQuantity(e.target.value)} aria-invalid={Boolean(errors.quantity)} />
@@ -187,6 +227,14 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
             {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </Field>
+        {data.stores.length > 0 && (
+          <Field label="Store">
+            <select value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+              <option value="">Any store</option>
+              {data.stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </Field>
+        )}
         <div className="field">
           <span className="field-label">Priority</span>
           <Segmented

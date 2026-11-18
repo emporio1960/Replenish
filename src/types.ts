@@ -41,6 +41,8 @@ export interface ShoppingItem {
   historyId?: string;
   deferral?: Deferral;
   deferCount: number;
+  /** Store this item is bought at; undefined means any store. */
+  storeId?: string;
   recurringId?: string;
   /** The schedule's due date before this purchase advanced it (used by undo). */
   recurringPrevDue?: string;
@@ -116,6 +118,37 @@ export interface ReplenishPref {
   dismissedAtPurchase?: string;
   /** User-adjusted interval in days, overriding the learned average. */
   customIntervalDays?: number;
+  /** Quantity the user says they have at home, and the day they recorded it. */
+  stock?: { quantity: number; unit: Unit; day: string };
+}
+
+export interface Store {
+  id: string;
+  name: string;
+  /** Category ids in the order you walk this store's aisles. */
+  aisleOrder: string[];
+  sample?: boolean;
+}
+
+export interface RecipeIngredient {
+  name: string;
+  quantity: number;
+  unit: Unit;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  ingredients: RecipeIngredient[];
+  sample?: boolean;
+}
+
+export interface SpendingBudget {
+  period: 'week' | 'month';
+  /** Overall limit for the period, or null when not set. */
+  total: number | null;
+  /** Optional limits per category id. */
+  byCategory: Record<string, number>;
 }
 
 export interface Notice {
@@ -148,6 +181,13 @@ export interface Settings {
   groupByCategory: boolean;
   autoAddRecurring: boolean;
   notifications: NotificationPrefs;
+  spendingBudget: SpendingBudget;
+  /** Store chosen in Shopping Mode, or null for all stores. */
+  shoppingStoreId: string | null;
+  /** Look up unknown barcodes with Open Food Facts (sends the barcode number). */
+  barcodeLookup: boolean;
+  /** Also show notifications through the device, where the browser allows. */
+  deviceNotifications: boolean;
 }
 
 export interface AppData {
@@ -160,6 +200,10 @@ export interface AppData {
   settings: Settings;
   replenishPrefs: Record<string, ReplenishPref>;
   notices: Notice[];
+  stores: Store[];
+  recipes: Recipe[];
+  /** Barcode number -> product name, learned as the user scans. */
+  barcodes: Record<string, string>;
   onboarded: boolean;
 }
 
@@ -169,6 +213,7 @@ export type ViewId =
   | 'deferred'
   | 'recurring'
   | 'suggestions'
+  | 'meals'
   | 'history'
   | 'analytics'
   | 'settings'

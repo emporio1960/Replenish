@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChartColumn } from 'lucide-react';
 import {
-  categorySpend, defaultRange, filterDeferrals, filterHistory, monthlySpend, summarize, topItems,
+  budgetStatus, categorySpend, defaultRange, filterDeferrals, filterHistory, monthlySpend, summarize, topItems,
   weeklySpend, type RangeFilter,
 } from '../lib/analytics';
 import { pluralDays } from '../lib/dates';
@@ -9,7 +9,8 @@ import { formatMoney, plural } from '../lib/format';
 import { useStore } from '../state/store';
 import { ChartCard, RankBars, ShareBar, TimeBars } from '../components/charts';
 import { RangeControls } from '../components/RangeControls';
-import { EmptyState, PageHeader } from '../components/ui';
+import { EmptyState, PageHeader, ProgressBar } from '../components/ui';
+import { formatDate } from '../lib/dates';
 
 export function Analytics() {
   const { data, today, go } = useStore();
@@ -26,6 +27,7 @@ export function Analytics() {
   const byCategory = categorySpend(records, data.categories);
   const top = topItems(records);
   const hasSpend = records.some((r) => (r.price ?? 0) > 0);
+  const spending = budgetStatus(data, today);
 
   if (data.history.length === 0) {
     return (
@@ -64,6 +66,37 @@ export function Analytics() {
           {plural(sum.unpriced, 'purchase has', 'purchases have')} no price recorded, so spending figures are a minimum.
         </p>
       )}
+
+      <section className="card budget-card">
+        <div className="chart-head">
+          <div>
+            <h2>Budget this {spending.period}</h2>
+            <p>Actual spending since {formatDate(spending.start, data.settings.dateFormat)}, whatever period is selected above</p>
+          </div>
+          <button type="button" className="btn btn-small btn-quiet" onClick={() => go('settings')}>Set budgets</button>
+        </div>
+        {spending.lines.length === 0 ? (
+          <p className="chart-empty">No spending budgets set. Add a weekly or monthly limit, overall or per category, in Settings.</p>
+        ) : (
+          <ul className="budget-lines">
+            {spending.lines.map((line) => {
+              const over = line.spent > line.budget;
+              return (
+                <li key={line.id}>
+                  <div className="budget-line">
+                    <span>{line.label}</span>
+                    <span>
+                      <strong>{money(line.spent)}</strong> of {money(line.budget)}
+                      {over ? `, ${money(line.spent - line.budget)} over` : ''}
+                    </span>
+                  </div>
+                  <ProgressBar value={line.spent} max={line.budget} tone={over ? 'alert' : 'accent'} label={`${line.label} spending against budget`} />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <div className="chart-grid">
         <ChartCard

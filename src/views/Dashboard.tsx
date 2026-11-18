@@ -1,5 +1,5 @@
 import {
-  CalendarClock, ChevronRight, CircleCheck, Hourglass, Lightbulb, PackageCheck, Plus, Repeat,
+  CalendarClock, ChevronRight, CircleCheck, Hourglass, Lightbulb, PackageCheck, PiggyBank, Plus, Repeat,
   ShoppingBasket, ShoppingCart, TrendingUp, Undo2, Wallet, type LucideIcon,
 } from 'lucide-react';
 import { listTotals } from '../lib/analytics';
@@ -15,7 +15,7 @@ import { CategoryIcon, Chip, EmptyState, PageHeader, ProgressBar, Section } from
 
 const INSIGHT_ICON: Record<Insight['icon'], LucideIcon> = {
   replenish: Hourglass, pattern: TrendingUp, deferred: CalendarClock, recurring: Repeat,
-  budget: Wallet, progress: CircleCheck, return: Undo2,
+  budget: Wallet, progress: CircleCheck, return: Undo2, spend: PiggyBank,
 };
 
 export function Dashboard() {

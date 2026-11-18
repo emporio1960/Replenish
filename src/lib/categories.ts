@@ -1,4 +1,4 @@
-import type { Category } from '../types';
+import type { Category, Store } from '../types';
 
 export const OTHER_CATEGORY_ID = 'other';
 
@@ -25,4 +25,13 @@ export function categoryById(categories: Category[], id: string): Category {
     categories.find((c) => c.id === OTHER_CATEGORY_ID) ??
     DEFAULT_CATEGORIES[DEFAULT_CATEGORIES.length - 1]
   );
+}
+
+/** Categories in the order a store's aisles are walked; unlisted ones follow in default order. */
+export function storeCategoryOrder(store: Store | undefined, categories: Category[]): Category[] {
+  if (!store) return categories;
+  const listed = store.aisleOrder
+    .map((id) => categories.find((c) => c.id === id))
+    .filter((c): c is Category => c !== undefined);
+  return [...listed, ...categories.filter((c) => !store.aisleOrder.includes(c.id))];
 }

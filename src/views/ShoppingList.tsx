@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
-  CalendarClock, Check, ChevronDown, Ellipsis, ListChecks, Minus, Plus, Repeat, Search, ShoppingCart, Undo2,
+  CalendarClock, Check, ChevronDown, ClipboardList, Ellipsis, ListChecks, Minus, Plus, Repeat, ScanBarcode, Search,
+  ShoppingCart, Undo2,
 } from 'lucide-react';
 import type { Category, Priority, ShoppingItem, SortKey } from '../types';
 import { listTotals } from '../lib/analytics';
@@ -47,6 +48,7 @@ function ItemRow({ item, showIcon }: { item: ShoppingItem; showIcon: boolean }) 
   const { data, apply, openModal, toast } = useStore();
   const category = categoryById(data.categories, item.categoryId);
   const done = item.status === 'purchased';
+  const store = data.stores.find((s) => s.id === item.storeId);
   const step = stepFor(item);
   const price = done ? (item.actualPrice ?? item.estimatedPrice) : item.estimatedPrice;
 
@@ -80,6 +82,7 @@ function ItemRow({ item, showIcon }: { item: ShoppingItem; showIcon: boolean }) 
         <span className="row-meta">
           <span className="qty-inline">{formatQty(item.quantity, item.unit)}</span>
           {price !== undefined && <span>{formatMoney(price, data.settings.currency)}{done && item.actualPrice !== undefined ? ' paid' : ''}</span>}
+          {store && <span>{store.name}</span>}
           {item.notes && <span className="note-text">{item.notes}</span>}
         </span>
         {(item.recurringId || item.deferCount > 0 || item.returnedAt || (item.priority === 'low' && !done)) && (
@@ -134,19 +137,21 @@ export function ShoppingList() {
   const [category, setCategory] = useState('all');
   const [priority, setPriority] = useState<'all' | Priority>('all');
   const [showDone, setShowDone] = useState(true);
+  const [store, setStore] = useState('all');
 
   const active = data.items.filter((i) => i.status === 'active');
   const purchased = data.items.filter((i) => i.status === 'purchased');
   const totals = listTotals(data);
-  const filtering = query.trim() !== '' || category !== 'all' || priority !== 'all';
+  const filtering = query.trim() !== '' || category !== 'all' || priority !== 'all' || store !== 'all';
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (i: ShoppingItem) =>
       (q === '' || i.name.toLowerCase().includes(q) || (i.notes ?? '').toLowerCase().includes(q)) &&
       (category === 'all' || i.categoryId === category) &&
-      (priority === 'all' || i.priority === priority);
-  }, [query, category, priority]);
+      (priority === 'all' || i.priority === priority) &&
+      (store === 'all' || (i.storeId ?? '') === store);
+  }, [query, category, priority, store]);
 
   const visible = sortItems(active.filter(matches), listSort, data.categories);
   const visibleDone = sortItems(purchased.filter(matches), 'added', data.categories);
@@ -169,6 +174,12 @@ export function ShoppingList() {
             </button>
             <button type="button" className="btn btn-primary" onClick={() => openModal({ type: 'item' })}>
               <Plus size={17} aria-hidden="true" /> Add item
+            </button>
+            <button type="button" className="btn" onClick={() => openModal({ type: 'paste' })}>
+              <ClipboardList size={17} aria-hidden="true" /> Add several
+            </button>
+            <button type="button" className="btn" onClick={() => openModal({ type: 'scan' })}>
+              <ScanBarcode size={17} aria-hidden="true" /> Scan
             </button>
           </>
         }
@@ -219,6 +230,16 @@ export function ShoppingList() {
               <option value="low">Low</option>
             </select>
           </label>
+          {data.stores.length > 0 && (
+            <label className="filter">
+              <span>Store</span>
+              <select value={store} onChange={(e) => setStore(e.target.value)}>
+                <option value="all">All stores</option>
+                <option value="">No store set</option>
+                {data.stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </label>
+          )}
           <label className="filter">
             <span>Sort by</span>
             <select value={listSort} onChange={(e) => apply((d) => updateSettings(d, { listSort: e.target.value as SortKey }))}>
@@ -250,7 +271,7 @@ export function ShoppingList() {
             icon={Search}
             title="No items match"
             body="Try a different search, or clear the filters."
-            action={<button type="button" className="btn" onClick={() => { setQuery(''); setCategory('all'); setPriority('all'); }}>Clear filters</button>}
+            action={<button type="button" className="btn" onClick={() => { setQuery(''); setCategory('all'); setPriority('all'); setStore('all'); }}>Clear filters</button>}
           />
         </div>
       ) : (

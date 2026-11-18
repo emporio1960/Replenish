@@ -604,3 +604,53 @@ main:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ---------- quick entry, meals, stores, scanning, budgets ---------- */
+
+.suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -6px; }
+.suggest button {
+  display: inline-flex; align-items: baseline; gap: 7px; min-height: 38px; padding: 0 12px;
+  border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: 14.5px;
+}
+.suggest span { font-size: 13px; opacity: 0.8; }
+.note .link { margin-left: auto; white-space: nowrap; }
+
+.parsed, .ingredients { display: grid; gap: 0; font-size: 14.5px; }
+.parsed li, .ingredients li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); }
+.parsed li:first-child, .ingredients li:first-child { border-top: 0; }
+.parsed { max-height: 30dvh; overflow-y: auto; background: var(--surface-2); border-radius: 12px; padding: 4px 12px; }
+.ingredients .is-listed span:first-child { color: var(--ink-3); text-decoration: line-through; }
+
+.title-link { text-align: left; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.title-link:hover { text-decoration-color: currentColor; }
+
+.store-card { display: grid; gap: 12px; }
+.aisles { display: grid; margin-top: 8px; }
+.aisles li { display: flex; align-items: center; gap: 10px; padding: 3px 0; border-top: 1px solid var(--line); color: var(--ink); }
+.aisles li span:nth-child(2) { flex: 1; }
+.budget-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
+.settings > .why { padding: 8px 0 12px; }
+
+.budget-card { display: grid; gap: 14px; margin-top: 14px; }
+.budget-lines { display: grid; gap: 14px; }
+.budget-lines li { display: grid; gap: 6px; }
+.budget-lines strong { color: var(--ink); }
+
+.scan-view {
+  position: relative; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden;
+  background: #111; display: grid; place-items: center;
+}
+.scan-view video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scan-view p { position: relative; color: #fff; text-align: center; padding: 0 24px; font-size: 14.5px; }
+.scan-view.is-off video { display: none; }
+.scan-line { position: absolute; left: 10%; right: 10%; top: 50%; height: 2px; background: #ff5a4f; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.18); border-radius: 2px; }
+
+.shop-add { grid-template-columns: 1fr 52px 52px; }
+.shop-store { margin-bottom: 10px; flex: none; }
+
+.suggest button { align-items: center; }
+@media (max-width: 619px) {
+  .row-tight { gap: 6px; }
+  .row-tight .icon-btn { width: 34px; }
+  .row-tight .price-btn { padding: 0 4px; }
+}

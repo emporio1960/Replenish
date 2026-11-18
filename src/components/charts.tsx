@@ -74,7 +74,7 @@ export function TimeBars({ data, format, label }: { data: Bucket[]; format: (v: 
         </div>
         {data.map((d, i) => (
           <button
-            key={d.detail}
+            key={i}
             type="button"
             className={`tbar ${i === shown ? 'is-on' : ''}`}
             aria-label={`${d.detail}: ${format(d.value)}`}
@@ -88,7 +88,7 @@ export function TimeBars({ data, format, label }: { data: Bucket[]; format: (v: 
       </div>
       <div className="tbars-x" aria-hidden="true">
         {data.map((d, i) => (
-          <span key={d.detail}>{(data.length - 1 - i) % every === 0 ? d.label : ''}</span>
+          <span key={i}>{(data.length - 1 - i) % every === 0 ? d.label : ''}</span>
         ))}
       </div>
     </div>

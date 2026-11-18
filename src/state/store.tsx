@@ -8,7 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { AppData, RecurringPurchase, ShoppingItem, ViewId } from '../types';
+import type { AppData, Recipe, RecurringPurchase, ShoppingItem, ViewId } from '../types';
+import { notifyDevice } from '../lib/notify';
 import { today as todayNow } from '../lib/dates';
 import { buildAlerts, type Alert } from '../lib/insights';
 import { buildRecommendations, type Recommendation } from '../lib/replenishment';
@@ -25,6 +26,10 @@ export type ModalState =
   | { type: 'confirm'; title: string; body: string; confirmLabel: string; danger?: boolean; onConfirm: () => void }
   | { type: 'adjust'; productKey: string }
   | { type: 'price'; historyId: string }
+  | { type: 'paste' }
+  | { type: 'recipe'; recipe?: Recipe }
+  | { type: 'product'; productKey: string }
+  | { type: 'scan' }
   | { type: 'alerts' }
   | { type: 'more' };
 
@@ -55,7 +60,7 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 const VIEWS: ViewId[] = [
-  'dashboard', 'list', 'deferred', 'recurring', 'suggestions', 'history', 'analytics', 'settings', 'shop',
+  'dashboard', 'list', 'deferred', 'recurring', 'suggestions', 'meals', 'history', 'analytics', 'settings', 'shop',
 ];
 
 /** The view named in the address bar (#/list), or null when there is none. */
@@ -170,6 +175,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const recs = useMemo(() => buildRecommendations(data, today), [data, today]);
   const alerts = useMemo(() => buildAlerts(data, today, recs), [data, today, recs]);
   const closeModal = useCallback(() => setModal(null), []);
+
+  const deviceNotifications = data.settings.deviceNotifications;
+  useEffect(() => {
+    notifyDevice(alerts, deviceNotifications, today);
+  }, [alerts, deviceNotifications, today]);
 
   const value = useMemo<StoreValue>(
     () => ({

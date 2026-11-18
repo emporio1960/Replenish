@@ -10,6 +10,8 @@ import {
   type Notice,
   type Priority,
   type PurchaseRecord,
+  type Recipe,
+  type Store,
   type RecurringPurchase,
   type ReplenishPref,
   type Settings,
@@ -24,7 +26,7 @@ import { normalizeName } from './duplicates';
 import { uid } from './format';
 
 export const STORAGE_KEY = 'replenish:data';
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
 
 /**
  * Persistence boundary. The app only talks to this interface, so a cloud
@@ -77,6 +79,10 @@ export function defaultSettings(): Settings {
     groupByCategory: true,
     autoAddRecurring: false,
     notifications: { recurringDue: true, deferredReturn: true, replenishment: true, budget: true },
+    spendingBudget: { period: 'week', total: null, byCategory: {} },
+    shoppingStoreId: null,
+    barcodeLookup: false,
+    deviceNotifications: false,
   };
 }
 
@@ -91,6 +97,9 @@ export function defaultData(): AppData {
     settings: defaultSettings(),
     replenishPrefs: {},
     notices: [],
+    stores: [],
+    recipes: [],
+    barcodes: {},
     onboarded: false,
   };
 }
@@ -169,6 +178,7 @@ function sanitizeItem(raw: unknown, catIds: Set<string>, now: string): ShoppingI
     status,
     createdAt: iso(raw.createdAt, now),
     deferCount: count(raw.deferCount),
+    storeId: optText(raw.storeId, 80),
     recurringId: optText(raw.recurringId, 80),
     recurringPrevDue: optDay(raw.recurringPrevDue),
     returnedAt: optIso(raw.returnedAt),
@@ -251,10 +261,44 @@ function sanitizeDeferral(raw: unknown): DeferralEvent | null {
   };
 }
 
-function sanitizeSettings(raw: unknown, catIds: Set<string>): Settings {
+function sanitizeStores(v: unknown, catIds: Set<string>): Store[] {
+  const out: Store[] = [];
+  for (const raw of arr(v)) {
+    if (!isObj(raw)) continue;
+    const name = text(raw.name, 40);
+    if (!name) continue;
+    const order = [...new Set(arr(raw.aisleOrder).filter((c): c is string => typeof c === 'string' && catIds.has(c)))];
+    out.push({ id: id(raw.id), name, aisleOrder: order, sample: flag(raw.sample) });
+  }
+  return out;
+}
+
+function sanitizeRecipes(v: unknown): Recipe[] {
+  const out: Recipe[] = [];
+  for (const raw of arr(v)) {
+    if (!isObj(raw)) continue;
+    const name = text(raw.name, 80);
+    if (!name) continue;
+    const ingredients = arr(raw.ingredients)
+      .filter(isObj)
+      .filter((i) => text(i.name, 80))
+      .map((i) => ({ name: text(i.name, 80), quantity: posNum(i.quantity, 1), unit: oneOf<Unit>(i.unit, UNITS, 'units') }));
+    out.push({ id: id(raw.id), name, ingredients, sample: flag(raw.sample) });
+  }
+  return out;
+}
+
+function sanitizeSettings(raw: unknown, catIds: Set<string>, storeIds: Set<string>): Settings {
   const d = defaultSettings();
   if (!isObj(raw)) return d;
   const n = isObj(raw.notifications) ? raw.notifications : {};
+  const sb = isObj(raw.spendingBudget) ? raw.spendingBudget : {};
+  const byCategory: Record<string, number> = {};
+  if (isObj(sb.byCategory)) {
+    for (const [cid, amount] of Object.entries(sb.byCategory)) {
+      if (catIds.has(cid) && typeof amount === 'number' && Number.isFinite(amount) && amount > 0) byCategory[cid] = amount;
+    }
+  }
   const currency = text(raw.currency, 10).toUpperCase();
   return {
     currency: /^[A-Z]{3}$/.test(currency) ? currency : d.currency,
@@ -272,6 +316,14 @@ function sanitizeSettings(raw: unknown, catIds: Set<string>): Settings {
       replenishment: bool(n.replenishment, true),
       budget: bool(n.budget, true),
     },
+    spendingBudget: {
+      period: oneOf(sb.period, ['week', 'month'] as const, 'week'),
+      total: typeof sb.total === 'number' && Number.isFinite(sb.total) && sb.total > 0 ? sb.total : null,
+      byCategory,
+    },
+    shoppingStoreId: storeIds.has(text(raw.shoppingStoreId)) ? text(raw.shoppingStoreId) : null,
+    barcodeLookup: bool(raw.barcodeLookup, false),
+    deviceNotifications: bool(raw.deviceNotifications, false),
   };
 }
 
@@ -286,6 +338,10 @@ function migrate(raw: Raw): Raw {
       case 0:
         // Pre-versioning saves used "deferralLog" for the deferral history.
         data = { ...data, deferrals: data.deferrals ?? data.deferralLog };
+        break;
+      case 1:
+        // Version 2 added stores, recipes and learned barcodes.
+        data = { ...data, stores: data.stores ?? [], recipes: data.recipes ?? [], barcodes: data.barcodes ?? {} };
         break;
     }
     version += 1;
@@ -319,9 +375,20 @@ export function sanitize(input: unknown): AppData {
   const recurring = unique(arr(raw.recurring).map((r) => sanitizeRecurring(r, catIds, now)).filter(keep));
   const recurringIds = new Set(recurring.map((r) => r.id));
   const history = unique(arr(raw.history).map((r) => sanitizeRecord(r, catIds)).filter(keep));
-  const items = unique(arr(raw.items).map((i) => sanitizeItem(i, catIds, now)).filter(keep)).map((i) =>
-    i.recurringId && !recurringIds.has(i.recurringId) ? { ...i, recurringId: undefined } : i,
-  );
+  const stores = unique(sanitizeStores(raw.stores, catIds));
+  const storeIds = new Set(stores.map((s) => s.id));
+  const items = unique(arr(raw.items).map((i) => sanitizeItem(i, catIds, now)).filter(keep)).map((i) => ({
+    ...i,
+    recurringId: i.recurringId && recurringIds.has(i.recurringId) ? i.recurringId : undefined,
+    storeId: i.storeId && storeIds.has(i.storeId) ? i.storeId : undefined,
+  }));
+
+  const barcodes: Record<string, string> = {};
+  if (isObj(raw.barcodes)) {
+    for (const [code, name] of Object.entries(raw.barcodes)) {
+      if (/^\d{6,14}$/.test(code) && text(name, 80)) barcodes[code] = text(name, 80);
+    }
+  }
 
   const replenishPrefs: Record<string, ReplenishPref> = {};
   if (isObj(raw.replenishPrefs)) {
@@ -331,6 +398,9 @@ export function sanitize(input: unknown): AppData {
       if (isValidDay(value.dismissedAtPurchase)) pref.dismissedAtPurchase = value.dismissedAtPurchase;
       if (typeof value.customIntervalDays === 'number' && value.customIntervalDays >= 1) {
         pref.customIntervalDays = Math.min(730, Math.round(value.customIntervalDays));
+      }
+      if (isObj(value.stock) && typeof value.stock.quantity === 'number' && value.stock.quantity >= 0 && isValidDay(value.stock.day)) {
+        pref.stock = { quantity: value.stock.quantity, unit: oneOf<Unit>(value.stock.unit, UNITS, 'units'), day: value.stock.day };
       }
       if (Object.keys(pref).length) replenishPrefs[key] = pref;
     }
@@ -354,9 +424,12 @@ export function sanitize(input: unknown): AppData {
     history,
     deferrals: unique(arr(raw.deferrals).map(sanitizeDeferral).filter(keep)),
     categories,
-    settings: sanitizeSettings(raw.settings, catIds),
+    settings: sanitizeSettings(raw.settings, catIds, storeIds),
     replenishPrefs,
     notices,
+    stores,
+    recipes: unique(sanitizeRecipes(raw.recipes)),
+    barcodes,
     onboarded: bool(raw.onboarded, items.length + recurring.length + history.length > 0),
   };
 }

@@ -10,6 +10,7 @@ import {
 } from '../state/actions';
 import { useStore } from '../state/store';
 import { CategoryIcon, Field, PageHeader, Section, Segmented, Toggle } from '../components/ui';
+import { AppSettings, SpendingBudgetSettings, StoresSettings } from './SettingsExtras';
 
 declare const __APP_VERSION__: string;
 
@@ -147,7 +148,7 @@ export function Settings() {
     openModal({
       type: 'confirm',
       title: 'Replace your data with this backup?',
-      body: `The backup contains ${plural(d.items.length, 'list item')}, ${plural(d.recurring.length, 'recurring purchase')} and ${plural(d.history.length, 'purchase record')}. Everything currently in Replenish on this device will be replaced.`,
+      body: `The backup contains ${plural(d.items.length, 'list item')}, ${plural(d.recurring.length, 'recurring purchase')}, ${plural(d.history.length, 'purchase record')} and ${plural(d.recipes.length, 'meal')}. Everything currently in Replenish on this device will be replaced.`,
       confirmLabel: 'Replace data',
       danger: true,
       onConfirm: () => {
@@ -207,7 +208,7 @@ export function Settings() {
         <div className="card settings">
           <div className="setting setting-block">
             <Field
-              label={`Shopping budget (${s.currency})`}
+              label={`Budget for the current list (${s.currency})`}
               error={budgetError}
               hint="Compared with the estimated cost of your current list. Leave empty for no budget."
             >
@@ -239,6 +240,14 @@ export function Settings() {
         </div>
       </Section>
 
+      <Section title="Spending budgets">
+        <SpendingBudgetSettings />
+      </Section>
+
+      <Section title="Stores">
+        <StoresSettings />
+      </Section>
+
       <Section title="Categories">
         <ul className="card rows">
           {data.categories.map((c) => <CategoryRow key={c.id} category={c} />)}
@@ -259,6 +268,10 @@ export function Settings() {
           <Toggle label="Replenishment reminders" checked={s.notifications.replenishment} onChange={(v) => set({ notifications: { ...s.notifications, replenishment: v } })} />
           <Toggle label="Going over budget" checked={s.notifications.budget} onChange={(v) => set({ notifications: { ...s.notifications, budget: v } })} />
         </div>
+      </Section>
+
+      <Section title="App and scanning">
+        <AppSettings />
       </Section>
 
       <Section title="Backup and data">
@@ -340,7 +353,7 @@ export function Settings() {
             <div><dt>Stored</dt><dd>On this device only, in browser storage ({STORAGE_KEY})</dd></div>
             <div>
               <dt>Records</dt>
-              <dd>{plural(data.items.length, 'list item')}, {data.recurring.length} recurring, {plural(data.history.length, 'purchase')}</dd>
+              <dd>{plural(data.items.length, 'list item')}, {data.recurring.length} recurring, {plural(data.history.length, 'purchase')}, {plural(data.recipes.length, 'meal')}, {plural(Object.keys(data.barcodes).length, 'barcode')}</dd>
             </div>
           </dl>
           <p className="fine">

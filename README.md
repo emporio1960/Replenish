@@ -2,7 +2,7 @@
 
 An intelligent shopping list and household purchasing manager. Replenish keeps your shopping list, lets you put purchases off until later, tracks the things you buy on a schedule, and learns from your purchase history to estimate when the essentials are due again.
 
-It is a client-side React app. There is no backend, account or paid API: everything is stored in the browser on your device.
+It is a client-side React app. There is no backend, account or paid API: everything is stored in the browser on your device, and it can be installed to a phone's Home Screen and used offline.
 
 ## Features
 
@@ -13,8 +13,16 @@ It is a client-side React app. There is no backend, account or paid API: everyth
 - **Suggestions**: replenishment estimates at three levels (due now, approaching, low priority), each with an explanation of the purchase dates and gaps it is based on. Accept, adjust or dismiss them. Also: frequently bought products, predictable purchase cycles, and items you keep postponing.
 - **Purchase History**: every purchase with date, quantity, price, category and whether it was recurring. Filter by period and category, correct the price paid, or buy again.
 - **Analytics**: weekly and monthly spending, top categories, most-bought products, deferred versus completed purchases. Every chart has a table view.
-- **Shopping Mode**: a stripped-back, one-handed view for use in the shop with large checkboxes, category grouping, progress and quick add.
-- **Settings**: currency (AUD by default), date format, 24-hour time, light and dark themes, budget, categories, notification preferences, JSON export and import, demo data, and clear all data.
+- **Shopping Mode**: a stripped-back, one-handed view for use in the shop with large checkboxes, category grouping, progress and quick add. Pick a store to see only what you buy there, in that store's aisle order.
+- **Faster entry**: as you type, products you have bought before are suggested and fill in their usual quantity, category and price. **Add several** takes a typed or pasted list, one item per line (`2 kg tomatoes`, `milk 2L`, `eggs x12`).
+- **Meals**: save a meal's ingredients once, then add whatever is missing to the list in one tap.
+- **Barcode scanning**: scan a product with the camera to tick it off or add it. Replenish remembers each barcode after you name it once; looking names up online is optional and off by default.
+- **Stock on hand**: tell Replenish how much of something you have at home and it estimates when that runs out, instead of going by purchase dates alone.
+- **Price tracking**: a usual price per product, price history, and flags on purchases well above or below the usual price.
+- **Spending budgets**: weekly or monthly limits, overall and per category, tracked against what you actually spend.
+- **Stores**: assign items to stores and set each store's aisle order.
+- **Installable and offline**: add it to your Home Screen and it opens like an app and works without a connection.
+- **Settings**: currency (AUD by default), date format, 24-hour time, light and dark themes, budgets, stores, categories, notification preferences, JSON export and import, demo data, and clear all data.
 
 ## Getting started
 
@@ -57,6 +65,17 @@ BASE_PATH=./ npm run build     # any folder, using relative paths
 
 The app uses hash-based navigation (`#/list`), so it needs no server rewrite rules.
 
+## Installing on a phone
+
+Once the site is deployed, open it on the phone:
+
+- **iPhone or iPad**: in Safari, tap Share, then **Add to Home Screen**.
+- **Android**: in Chrome, open the menu and choose **Install app** (or use the Install button under Settings).
+
+The installed app opens full-screen and works offline. Camera scanning and device notifications need the site to be served over HTTPS, which GitHub Pages does.
+
+**About notifications**: device notifications and the app-icon badge update when you open or return to the app. Alerts that arrive while the app is closed need a push server, which this serverless app does not have.
+
 ## Your data
 
 - Data is saved automatically to the browser's LocalStorage under the key `replenish:data`, and survives refreshes and restarts.
@@ -73,8 +92,10 @@ There is no AI service involved. The rules are deliberately simple and visible:
 - **Predictable cycles**: products with at least three gaps whose variation is small (coefficient of variation of 0.35 or less).
 - **Duplicates**: names are compared ignoring case, punctuation, simple plurals and word order, and allowing small typos in longer names.
 - **Repeatedly postponed**: items deferred two or more times.
+- **Stock on hand**: if you record a quantity at home, the run-out date is *that quantity / (usual quantity / usual gap)* from the day you recorded it. The record is used until your next purchase of that product.
+- **Usual price**: the median price per unit across your purchases. A purchase is flagged when its unit price is 15% or more above or below that, once there are at least three priced purchases.
 
-These are estimates from purchase dates only. Replenish does not know what is actually in your cupboard.
+These are estimates. Unless you record stock on hand, Replenish does not know what is actually in your cupboard.
 
 ## Project structure
 
@@ -82,7 +103,8 @@ These are estimates from purchase dates only. Replenish does not know what is ac
 src/
   types.ts            Data model
   lib/                Pure logic: dates, recurrence, replenishment, duplicates,
-                      analytics, insights, storage and validation, demo data
+                      analytics, insights, storage and validation, demo data,
+                      list parsing, barcode scanning, device notifications
   state/
     actions.ts        Every data change as a pure function (data in, data out)
     store.tsx         React context: state, auto-save, navigation, modals, toasts
@@ -98,4 +120,4 @@ The UI never touches storage directly. All persistence goes through the `Storage
 
 ## Tech
 
-React, TypeScript, Vite, plain CSS with custom properties, Lucide icons, Vitest and Testing Library. The heading typeface (Bricolage Grotesque) is bundled, so the app makes no third-party requests.
+React, TypeScript, Vite, plain CSS with custom properties, Lucide icons, Vitest and Testing Library. Barcode reading uses the browser's built-in detector where available and the ZXing library otherwise, loaded only when you scan. The heading typeface (Bricolage Grotesque) is bundled. The app makes no third-party requests unless you switch on online barcode lookup, which sends the barcode number to Open Food Facts.

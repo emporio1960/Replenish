@@ -59,13 +59,16 @@ export function Suggestions() {
         </div>
         {r.onList ? <Chip tone="good">On list</Chip> : <Chip tone={LEVEL_TONE[r.level]}>{LEVEL_LABEL[r.level]}</Chip>}
       </div>
+      {r.stock && (
+        <p className="note">About {Number(r.stock.remaining.toFixed(2))} {r.unit} left, going by the {Number(r.stock.quantity.toFixed(2))} {r.unit} you recorded.</p>
+      )}
       <details className="why">
         <summary>How this was estimated</summary>
         <p>{r.explanation}</p>
         <p>
           Usually {formatQty(r.typicalQuantity, r.unit)}
           {r.avgPrice !== undefined ? `, averaging ${formatMoney(r.avgPrice, currency)}` : ''}. This is an estimate
-          from purchase dates only. Replenish does not know how much you have left at home.
+          from purchase dates{r.stock ? ' and the amount you recorded' : ' only'}. Use Adjust to tell Replenish how much you have at home.
         </p>
       </details>
       <div className="card-actions">
@@ -77,6 +80,11 @@ export function Suggestions() {
         <button type="button" className="btn btn-small" onClick={() => openModal({ type: 'adjust', productKey: r.key })}>
           Adjust
         </button>
+        {r.prices.length > 0 && (
+          <button type="button" className="btn btn-small" onClick={() => openModal({ type: 'product', productKey: r.key })}>
+            Prices
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-small btn-quiet"
