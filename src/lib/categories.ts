@@ -11,6 +11,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'frozen', name: 'Frozen foods', icon: 'snowflake', color: '#3a9aa8', custom: false },
   { id: 'beverages', name: 'Beverages', icon: 'cup', color: '#7a5ab5', custom: false },
   { id: 'cleaning', name: 'Household cleaning', icon: 'spray', color: '#2f8f83', custom: false },
+  { id: 'household', name: 'Household essentials', icon: 'box', color: '#5f6f9a', custom: false },
   { id: 'personal', name: 'Personal care', icon: 'bath', color: '#b3558f', custom: false },
   { id: 'pet', name: 'Pet supplies', icon: 'paw', color: '#a8643c', custom: false },
   { id: 'health', name: 'Health and pharmacy', icon: 'pill', color: '#cf4f6b', custom: false },

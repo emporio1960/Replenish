@@ -5,7 +5,7 @@ import { storeCategoryOrder } from '../lib/categories';
 import { formatDate, formatTime } from '../lib/dates';
 import { parseNumber, plural } from '../lib/format';
 import { deviceNotificationState, requestDeviceNotifications } from '../lib/notify';
-import { addStore, deleteStore, moveAisle, renameStore, updateSettings } from '../state/actions';
+import { addStore, deleteStore, forgetCategoryRule, moveAisle, renameStore, updateSettings } from '../state/actions';
 import { useStore } from '../state/store';
 import { CategoryIcon, Field, Segmented, Toggle } from '../components/ui';
 
@@ -327,6 +327,59 @@ export function SyncSettings() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function CategorySmartSettings() {
+  const { data, apply, toast } = useStore();
+  const s = data.settings;
+  const rules = Object.entries(data.categoryRules).sort((a, b) => a[0].localeCompare(b[0]));
+  return (
+    <div className="card settings">
+      <p className="fine">
+        New items are filed under a category automatically from their name. This happens on your device and works offline.
+        Anything not recognised goes to your default category.
+      </p>
+      <Toggle
+        label="Remember my category changes"
+        description="When you move an item to a different category, file that product the same way next time."
+        checked={s.rememberCategories}
+        onChange={(rememberCategories) => apply((d) => updateSettings(d, { rememberCategories }))}
+      />
+      <Toggle
+        label="Show empty categories on the list"
+        checked={s.showEmptyCategories}
+        onChange={(showEmptyCategories) => apply((d) => updateSettings(d, { showEmptyCategories }))}
+      />
+      <details className="why">
+        <summary>Your category rules ({rules.length})</summary>
+        {rules.length === 0 ? (
+          <p>None yet. Change an item's category and Replenish remembers it here.</p>
+        ) : (
+          <ul className="rule-list">
+            {rules.map(([key, categoryId]) => {
+              const category = data.categories.find((c) => c.id === categoryId);
+              if (!category) return null;
+              return (
+                <li key={key}>
+                  <span>{key}</span>
+                  <CategoryIcon category={category} size={24} />
+                  <span>{category.name}</span>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={`Forget the rule for ${key}`}
+                    onClick={() => { apply((d) => forgetCategoryRule(d, key)); toast(`Forgot the rule for ${key}`); }}
+                  >
+                    <Trash size={16} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </details>
     </div>
   );
 }

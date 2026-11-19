@@ -6,7 +6,7 @@ import { categoryById } from '../lib/categories';
 import { asDay, formatDate, formatTime, longDate } from '../lib/dates';
 import { formatMoney, formatQty, plural } from '../lib/format';
 import { buildItemStats, priceFlag } from '../lib/replenishment';
-import { addItem, deleteHistory } from '../state/actions';
+import { addItem, deleteHistory, resolveCategory } from '../state/actions';
 import { useStore } from '../state/store';
 import { RangeControls } from '../components/RangeControls';
 import { CategoryIcon, Chip, EmptyState, PageHeader } from '../components/ui';
@@ -123,7 +123,7 @@ export function History() {
                           apply((d) =>
                             addItem(d, {
                               name: r.name, quantity: r.quantity, unit: r.unit, estimatedPrice: r.price,
-                              categoryId: r.categoryId, priority: 'normal',
+                              categoryId: resolveCategory(d, r.name, r.categoryId), priority: 'normal',
                             }, new Date()),
                           );
                           toast(`Added ${r.name} to your list`);

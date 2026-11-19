@@ -19,7 +19,7 @@ import { processDue, type ItemInput, type RecurringInput } from './actions';
 import { useSync, type SyncApi } from './useSync';
 
 export type ModalState =
-  | { type: 'item'; item?: ShoppingItem; preset?: Partial<ItemInput> }
+  | { type: 'item'; item?: ShoppingItem; itemId?: string; preset?: Partial<ItemInput> }
   | { type: 'itemActions'; itemId: string }
   | { type: 'defer'; itemId: string }
   | { type: 'snooze'; recurringId: string }

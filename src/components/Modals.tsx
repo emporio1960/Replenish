@@ -255,11 +255,13 @@ function MoreSheet() {
 }
 
 export function ModalHost() {
-  const { modal, closeModal } = useStore();
+  const { modal, closeModal, data } = useStore();
   if (!modal) return null;
   switch (modal.type) {
-    case 'item':
-      return <ItemForm key={modal.item?.id ?? 'new'} item={modal.item} preset={modal.preset} />;
+    case 'item': {
+        const item = modal.item ?? data.items.find((i) => i.id === modal.itemId);
+        return <ItemForm key={item?.id ?? 'new'} item={item} preset={modal.preset} />;
+    }
     case 'itemActions':
       return <ItemActions itemId={modal.itemId} />;
     case 'defer':

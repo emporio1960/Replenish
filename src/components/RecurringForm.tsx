@@ -4,7 +4,7 @@ import { isValidDay } from '../lib/dates';
 import { normalizeName } from '../lib/duplicates';
 import { parseNumber } from '../lib/format';
 import { FREQUENCIES } from '../lib/recurrence';
-import { addRecurring, updateRecurring, type RecurringInput } from '../state/actions';
+import { addRecurring, autoCategory, learnCategory, updateRecurring, type RecurringInput } from '../state/actions';
 import { useStore } from '../state/store';
 import { Field, Modal } from './ui';
 
@@ -21,7 +21,8 @@ export function RecurringForm({ recurring, preset, linkItemId }: Props) {
   const [quantity, setQuantity] = useState(String(base.quantity ?? 1));
   const [unit, setUnit] = useState<Unit>(base.unit ?? 'units');
   const [price, setPrice] = useState(base.estimatedPrice !== undefined ? String(base.estimatedPrice) : '');
-  const [categoryId, setCategoryId] = useState(base.categoryId ?? data.settings.defaultCategoryId);
+  const [categoryId, setCategoryId] = useState(base.categoryId ?? autoCategory(data, base.name ?? ''));
+  const [autoCat, setAutoCat] = useState(!recurring && base.categoryId === undefined);
   const [freq, setFreq] = useState<FrequencyKind>(base.frequency?.kind ?? 'weekly');
   const [every, setEvery] = useState(String(base.frequency?.customDays ?? 10));
   const [nextDue, setNextDue] = useState(base.nextDue ?? today);
@@ -64,7 +65,11 @@ export function RecurringForm({ recurring, preset, linkItemId }: Props) {
       nextDue,
       reminderDate: reminder || undefined,
     };
-    apply((d) => (recurring ? updateRecurring(d, recurring.id, input) : addRecurring(d, input, new Date(), linkItemId)));
+    const corrected = recurring ? categoryId !== recurring.categoryId : !autoCat && preset?.categoryId !== categoryId;
+    apply((d) => {
+      const next = recurring ? updateRecurring(d, recurring.id, input) : addRecurring(d, input, new Date(), linkItemId);
+      return corrected ? learnCategory(next, input.name, input.categoryId) : next;
+    });
     toast(recurring ? `Saved ${input.name}` : `${input.name} will now recur`);
     closeModal();
   }
@@ -84,7 +89,7 @@ export function RecurringForm({ recurring, preset, linkItemId }: Props) {
     >
       <form id="recurring-form" className="form" onSubmit={onSubmit} noValidate>
         <Field label="Product" error={errors.name}>
-          <input data-autofocus value={name} maxLength={80} autoComplete="off" onChange={(e) => setName(e.target.value)} aria-invalid={Boolean(errors.name)} />
+          <input data-autofocus value={name} maxLength={80} autoComplete="off" onChange={(e) => { setName(e.target.value); if (autoCat) setCategoryId(autoCategory(data, e.target.value)); }} aria-invalid={Boolean(errors.name)} />
         </Field>
         <div className="form-row">
           <Field label="Quantity" error={errors.quantity}>
@@ -101,7 +106,7 @@ export function RecurringForm({ recurring, preset, linkItemId }: Props) {
             <input value={price} inputMode="decimal" placeholder="Optional" onChange={(e) => setPrice(e.target.value)} />
           </Field>
           <Field label="Category">
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <select value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setAutoCat(false); }}>
               {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </Field>

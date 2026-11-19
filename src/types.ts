@@ -184,6 +184,12 @@ export interface Settings {
   spendingBudget: SpendingBudget;
   /** Store chosen in Shopping Mode, or null for all stores. */
   shoppingStoreId: string | null;
+  /** Remember manual category changes as rules for future items. */
+  rememberCategories: boolean;
+  /** Show categories with nothing in them on the shopping list. */
+  showEmptyCategories: boolean;
+  /** Category sections the user has collapsed on the shopping list. */
+  collapsedCategories: string[];
   /** Look up unknown barcodes with Open Food Facts (sends the barcode number). */
   barcodeLookup: boolean;
   /** Also show notifications through the device, where the browser allows. */
@@ -202,6 +208,8 @@ export interface AppData {
   notices: Notice[];
   stores: Store[];
   recipes: Recipe[];
+  /** Product key -> category id: corrections the user made, which override the built-in rules. */
+  categoryRules: Record<string, string>;
   /** Barcode number -> product name, learned as the user scans. */
   barcodes: Record<string, string>;
   onboarded: boolean;

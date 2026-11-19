@@ -26,7 +26,7 @@ import { normalizeName } from './duplicates';
 import { uid } from './format';
 
 export const STORAGE_KEY = 'replenish:data';
-export const CURRENT_VERSION = 2;
+export const CURRENT_VERSION = 3;
 
 /**
  * Persistence boundary. The app only talks to this interface, so a cloud
@@ -81,6 +81,9 @@ export function defaultSettings(): Settings {
     notifications: { recurringDue: true, deferredReturn: true, replenishment: true, budget: true },
     spendingBudget: { period: 'week', total: null, byCategory: {} },
     shoppingStoreId: null,
+    rememberCategories: true,
+    showEmptyCategories: false,
+    collapsedCategories: [],
     barcodeLookup: false,
     deviceNotifications: false,
   };
@@ -99,6 +102,7 @@ export function defaultData(): AppData {
     notices: [],
     stores: [],
     recipes: [],
+    categoryRules: {},
     barcodes: {},
     onboarded: false,
   };
@@ -322,6 +326,9 @@ function sanitizeSettings(raw: unknown, catIds: Set<string>, storeIds: Set<strin
       byCategory,
     },
     shoppingStoreId: storeIds.has(text(raw.shoppingStoreId)) ? text(raw.shoppingStoreId) : null,
+    rememberCategories: bool(raw.rememberCategories, true),
+    showEmptyCategories: bool(raw.showEmptyCategories, false),
+    collapsedCategories: [...new Set(arr(raw.collapsedCategories).filter((c): c is string => typeof c === 'string' && catIds.has(c)))],
     barcodeLookup: bool(raw.barcodeLookup, false),
     deviceNotifications: bool(raw.deviceNotifications, false),
   };
@@ -342,6 +349,11 @@ function migrate(raw: Raw): Raw {
       case 1:
         // Version 2 added stores, recipes and learned barcodes.
         data = { ...data, stores: data.stores ?? [], recipes: data.recipes ?? [], barcodes: data.barcodes ?? {} };
+        break;
+      case 2:
+        // Version 3 added learned category rules (and the Household essentials
+        // category, which sanitizeCategories adds for existing saves).
+        data = { ...data, categoryRules: data.categoryRules ?? {} };
         break;
     }
     version += 1;
@@ -390,6 +402,13 @@ export function sanitize(input: unknown): AppData {
     }
   }
 
+  const categoryRules: Record<string, string> = {};
+  if (isObj(raw.categoryRules)) {
+    for (const [key, cid] of Object.entries(raw.categoryRules)) {
+      if (key && key.length <= 80 && typeof cid === 'string' && catIds.has(cid)) categoryRules[key] = cid;
+    }
+  }
+
   const replenishPrefs: Record<string, ReplenishPref> = {};
   if (isObj(raw.replenishPrefs)) {
     for (const [key, value] of Object.entries(raw.replenishPrefs)) {
@@ -429,6 +448,7 @@ export function sanitize(input: unknown): AppData {
     notices,
     stores,
     recipes: unique(sanitizeRecipes(raw.recipes)),
+    categoryRules,
     barcodes,
     onboarded: bool(raw.onboarded, items.length + recurring.length + history.length > 0),
   };

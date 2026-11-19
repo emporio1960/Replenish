@@ -48,7 +48,7 @@ describe('list parsing', () => {
     expect(added.map((i) => i.name)).toEqual(['Milk', 'Lemons']);
     // Known product: category and a price scaled from the usual price per litre.
     expect(added[0]).toMatchObject({ categoryId: 'dairy', estimatedPrice: 6, quantity: 4, unit: 'L' });
-    expect(added[1].categoryId).toBe('other');
+    expect(added[1].categoryId).toBe('produce'); // unknown to history, recognised by the classifier
   });
 });
 
@@ -149,7 +149,7 @@ describe('stores, meals and barcodes', () => {
 
     // A version 1 backup (before these features) loads with sensible defaults.
     const v1 = sanitize({ version: 1, items: [{ name: 'Rice' }], settings: { currency: 'AUD' } });
-    expect(v1).toMatchObject({ version: 2, stores: [], recipes: [], barcodes: {} });
+    expect(v1).toMatchObject({ version: 3, stores: [], recipes: [], barcodes: {} });
     expect(v1.settings.spendingBudget).toEqual({ period: 'week', total: null, byCategory: {} });
 
     const cleaned = removeSample(d);

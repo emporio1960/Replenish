@@ -10,7 +10,7 @@ import {
 } from '../state/actions';
 import { useStore } from '../state/store';
 import { CategoryIcon, Field, PageHeader, Section, Segmented, Toggle } from '../components/ui';
-import { AppSettings, SpendingBudgetSettings, StoresSettings, SyncSettings } from './SettingsExtras';
+import { AppSettings, CategorySmartSettings, SpendingBudgetSettings, StoresSettings, SyncSettings } from './SettingsExtras';
 
 declare const __APP_VERSION__: string;
 
@@ -220,7 +220,7 @@ export function Settings() {
             </Field>
           </div>
           <label className="setting">
-            <span className="setting-label">Default category for new items</span>
+            <span className="setting-label">Category for items that are not recognised</span>
             <select value={s.defaultCategoryId} onChange={(e) => set({ defaultCategoryId: e.target.value })}>
               {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -250,6 +250,10 @@ export function Settings() {
 
       <Section title="Stores">
         <StoresSettings />
+      </Section>
+
+      <Section title="Automatic categories">
+        <CategorySmartSettings />
       </Section>
 
       <Section title="Categories">

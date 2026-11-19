@@ -9,7 +9,7 @@ import { formatMoney, formatQty, plural } from '../lib/format';
 import { buildInsights, upcomingRecurring, type Insight } from '../lib/insights';
 import { frequencyLabel } from '../lib/recurrence';
 import { actionable, LEVEL_LABEL } from '../lib/replenishment';
-import { addItem, addRecurringToList, itemForRecurring, loadSample } from '../state/actions';
+import { addItem, addRecurringToList, itemForRecurring, loadSample, resolveCategory } from '../state/actions';
 import { useStore } from '../state/store';
 import { CategoryIcon, Chip, EmptyState, PageHeader, ProgressBar, Section } from '../components/ui';
 
@@ -233,7 +233,7 @@ export function Dashboard() {
                     onClick={() => {
                       apply((d) =>
                         addItem(d, {
-                          name: r.name, quantity: r.typicalQuantity, unit: r.unit, categoryId: r.categoryId, priority: 'normal',
+                          name: r.name, quantity: r.typicalQuantity, unit: r.unit, categoryId: resolveCategory(d, r.name, r.categoryId), priority: 'normal',
                           estimatedPrice: r.avgPrice !== undefined ? Math.round(r.avgPrice * 100) / 100 : undefined,
                         }, new Date()),
                       );

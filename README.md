@@ -8,6 +8,7 @@ It is a client-side React app. There is no backend, account or paid API: everyth
 
 - **Dashboard**: list progress, estimated spend against budget, upcoming recurring purchases, replenishment reminders and a plain-language summary built from your own data.
 - **Shopping List**: add, edit, delete, tick off and undo; quantities and units; estimated prices; categories (including your own); notes; priorities; search, filter, sort and grouping.
+- **Automatic categories**: new items are filed under the right category from their name ("2 litres of milk" goes to Dairy and eggs, "batteries" to Household essentials), in collapsible category sections. Change a category and Replenish remembers it for that product.
 - **Deferred**: defer until tomorrow, 3 days, 7 days, next week, a chosen date, or indefinitely, with an optional reason. Items return to the list automatically on their date and are never silently dropped.
 - **Recurring**: daily to quarterly or a custom interval. Due purchases can be added to the list, deferred, skipped once, paused, edited or removed. Buying one works out the next date automatically, and a schedule never creates a duplicate list entry.
 - **Suggestions**: replenishment estimates at three levels (due now, approaching, low priority), each with an explanation of the purchase dates and gaps it is based on. Accept, adjust or dismiss them. Also: frequently bought products, predictable purchase cycles, and items you keep postponing.
@@ -110,6 +111,7 @@ There is no AI service involved. The rules are deliberately simple and visible:
 - **Predictable cycles**: products with at least three gaps whose variation is small (coefficient of variation of 0.35 or less).
 - **Duplicates**: names are compared ignoring case, punctuation, simple plurals and word order, and allowing small typos in longer names.
 - **Repeatedly postponed**: items deferred two or more times.
+- **Automatic categories**: `src/lib/classify.ts` holds a product dictionary (with Australian terms) and a few context rules. Quantities and units are stripped first. It then looks for, in order: a correction you made for that product, the category you last bought it under, the longest multi-word product in the name ("dog food"), a describing word ("frozen", "tinned", "cat"), and otherwise the last recognised word ("chicken stock" is stock). Words of six letters or more are allowed one typo. If nothing matches, the item goes to Other (or the category you chose for unrecognised items); it never guesses.
 - **Stock on hand**: if you record a quantity at home, the run-out date is *that quantity / (usual quantity / usual gap)* from the day you recorded it. The record is used until your next purchase of that product.
 - **Usual price**: the median price per unit across your purchases. A purchase is flagged when its unit price is 15% or more above or below that, once there are at least three priced purchases.
 
@@ -122,7 +124,8 @@ src/
   types.ts            Data model
   lib/                Pure logic: dates, recurrence, replenishment, duplicates,
                       analytics, insights, storage and validation, demo data,
-                      list parsing, barcode scanning, device notifications
+                      list parsing, automatic categorisation, barcode scanning,
+                      device notifications, sync
   state/
     actions.ts        Every data change as a pure function (data in, data out)
     store.tsx         React context: state, auto-save, navigation, modals, toasts

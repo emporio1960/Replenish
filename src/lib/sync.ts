@@ -199,6 +199,7 @@ export function combine(local: AppData, remote: AppData): AppData {
     recipes: union(local.recipes, remote.recipes),
     notices: union(local.notices, remote.notices),
     barcodes: { ...remote.barcodes, ...local.barcodes },
+    categoryRules: { ...remote.categoryRules, ...local.categoryRules },
     replenishPrefs: { ...remote.replenishPrefs, ...local.replenishPrefs },
   });
 }

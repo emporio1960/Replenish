@@ -7,7 +7,7 @@ import type { Category, Priority, ShoppingItem, SortKey } from '../types';
 import { listTotals } from '../lib/analytics';
 import { categoryById } from '../lib/categories';
 import { formatMoney, formatQty, plural, times } from '../lib/format';
-import { clearPurchased, purchaseItem, undoPurchase, updateItem, updateSettings } from '../state/actions';
+import { clearPurchased, purchaseItem, sortableOther, sortOther, undoPurchase, updateItem, updateSettings } from '../state/actions';
 import { useStore } from '../state/store';
 import { CategoryIcon, Chip, EmptyState, PageHeader, ProgressBar } from '../components/ui';
 
@@ -31,13 +31,17 @@ export function sortItems(items: ShoppingItem[], sort: SortKey, categories: Cate
   }
 }
 
-export function groupByCategory(items: ShoppingItem[], categories: Category[]): { category: Category; items: ShoppingItem[] }[] {
+export function groupByCategory(
+  items: ShoppingItem[], categories: Category[], includeEmpty = false,
+): { category: Category; items: ShoppingItem[] }[] {
   const groups = new Map<string, ShoppingItem[]>();
   for (const i of items) {
     const id = categoryById(categories, i.categoryId).id;
     groups.set(id, [...(groups.get(id) ?? []), i]);
   }
-  return categories.filter((c) => groups.has(c.id)).map((c) => ({ category: c, items: groups.get(c.id)! }));
+  return categories
+    .filter((c) => includeEmpty || groups.has(c.id))
+    .map((c) => ({ category: c, items: groups.get(c.id) ?? [] }));
 }
 
 function stepFor(item: ShoppingItem): number {
@@ -155,7 +159,14 @@ export function ShoppingList() {
 
   const visible = sortItems(active.filter(matches), listSort, data.categories);
   const visibleDone = sortItems(purchased.filter(matches), 'added', data.categories);
-  const groups = grouped ? groupByCategory(visible, data.categories) : null;
+  const { collapsedCategories: collapsed, showEmptyCategories } = data.settings;
+  const groups = grouped ? groupByCategory(visible, data.categories, showEmptyCategories && !filtering) : null;
+  const sortable = sortableOther(data);
+  const toggleGroup = (id: string) =>
+    apply((d) => {
+      const now = d.settings.collapsedCategories;
+      return updateSettings(d, { collapsedCategories: now.includes(id) ? now.filter((c) => c !== id) : [...now, id] });
+    });
   const total = active.length + purchased.length;
 
   return (
@@ -256,6 +267,19 @@ export function ShoppingList() {
         </div>
       )}
 
+      {sortable > 0 && (
+        <div className="card sort-offer">
+          <span>{plural(sortable, 'item')} in Other can be sorted into {sortable === 1 ? 'its category' : 'categories'} automatically.</span>
+          <button
+            type="button"
+            className="btn btn-small"
+            onClick={() => { apply(sortOther); toast(`Sorted ${plural(sortable, 'item')} into categories`); }}
+          >
+            Sort {sortable === 1 ? 'it' : 'them'}
+          </button>
+        </div>
+      )}
+
       {total === 0 ? (
         <div className="card">
           <EmptyState
@@ -285,13 +309,23 @@ export function ShoppingList() {
             ? groups.map((g) => (
                 <section key={g.category.id} className="group">
                   <h2 className="group-head">
-                    <CategoryIcon category={g.category} size={26} />
-                    {g.category.name}
-                    <span className="count">{g.items.length}</span>
+                    <button
+                      type="button"
+                      className="disclosure group-toggle"
+                      aria-expanded={!collapsed.includes(g.category.id)}
+                      onClick={() => toggleGroup(g.category.id)}
+                    >
+                      <ChevronDown size={18} className={collapsed.includes(g.category.id) ? 'is-closed' : ''} aria-hidden="true" />
+                      <CategoryIcon category={g.category} size={26} />
+                      {g.category.name}
+                      <span className="count">{g.items.length}</span>
+                    </button>
                   </h2>
-                  <ul className="card rows">
-                    {g.items.map((i) => <ItemRow key={i.id} item={i} showIcon={false} />)}
-                  </ul>
+                  {!collapsed.includes(g.category.id) && g.items.length > 0 && (
+                    <ul className="card rows">
+                      {g.items.map((i) => <ItemRow key={i.id} item={i} showIcon={false} />)}
+                    </ul>
+                  )}
                 </section>
               ))
             : visible.length > 0 && (

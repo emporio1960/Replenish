@@ -7,7 +7,7 @@ import { frequencyFromDays } from '../lib/recurrence';
 import {
   buildItemStats, LEVEL_LABEL, type ItemStats, type Recommendation, type ReplenishLevel,
 } from '../lib/replenishment';
-import { addItem, deleteItem, restoreItem, setReplenishPref } from '../state/actions';
+import { addItem, deleteItem, resolveCategory, restoreItem, setReplenishPref } from '../state/actions';
 import { useStore } from '../state/store';
 import { CategoryIcon, Chip, EmptyState, PageHeader, Section } from '../components/ui';
 
@@ -28,7 +28,7 @@ export function Suggestions() {
   const addFrom = (s: ItemStats) => {
     apply((d) =>
       addItem(d, {
-        name: s.name, quantity: s.typicalQuantity, unit: s.unit, categoryId: s.categoryId, priority: 'normal',
+        name: s.name, quantity: s.typicalQuantity, unit: s.unit, categoryId: resolveCategory(d, s.name, s.categoryId), priority: 'normal',
         estimatedPrice: s.avgPrice !== undefined ? Math.round(s.avgPrice * 100) / 100 : undefined,
       }, new Date()),
     );

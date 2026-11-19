@@ -17,6 +17,7 @@ import type {
   Unit,
 } from '../types';
 import { CUSTOM_COLORS, OTHER_CATEGORY_ID, storeCategoryOrder } from '../lib/categories';
+import { categorise, classifyName, productKey } from '../lib/classify';
 import { toDay } from '../lib/dates';
 import { findDuplicates, normalizeName } from '../lib/duplicates';
 import type { ParsedLine } from '../lib/parseList';
@@ -385,9 +386,11 @@ export function deleteCategory(data: AppData, id: string): AppData {
     recurring: data.recurring.map(move),
     history: data.history.map(move),
     stores: data.stores.map((s) => ({ ...s, aisleOrder: s.aisleOrder.filter((c) => c !== id) })),
+    categoryRules: Object.fromEntries(Object.entries(data.categoryRules).filter(([, c]) => c !== id)),
     settings: {
       ...data.settings,
       defaultCategoryId: data.settings.defaultCategoryId === id ? OTHER_CATEGORY_ID : data.settings.defaultCategoryId,
+      collapsedCategories: data.settings.collapsedCategories.filter((c) => c !== id),
       spendingBudget: {
         ...data.settings.spendingBudget,
         byCategory: Object.fromEntries(Object.entries(data.settings.spendingBudget.byCategory).filter(([c]) => c !== id)),
@@ -422,6 +425,60 @@ export function setHistoryPrice(data: AppData, id: string, price: number | undef
   };
 }
 
+/* ---------- automatic categorisation ---------- */
+
+/** Category for a new item: worked out from its name, else the user's default category. */
+export function autoCategory(data: AppData, name: string): string {
+  const found = categorise(data, name);
+  return found.source === 'none' ? data.settings.defaultCategoryId : found.categoryId;
+}
+
+/** Keeps a category the item already has, unless that is just "Other" and a better one is known. */
+export function resolveCategory(data: AppData, name: string, current: string): string {
+  if (current !== OTHER_CATEGORY_ID) return current;
+  const found = categorise(data, name);
+  return found.source === 'none' ? current : found.categoryId;
+}
+
+/**
+ * Remembers a manual correction so the same product is filed the same way
+ * next time. Choosing what the built-in rules would pick anyway clears the rule.
+ */
+export function learnCategory(data: AppData, name: string, categoryId: string): AppData {
+  const key = productKey(name);
+  if (!key || !data.settings.rememberCategories) return data;
+  const rules = { ...data.categoryRules };
+  if (classifyName(name).categoryId === categoryId) delete rules[key];
+  else rules[key] = categoryId;
+  return { ...data, categoryRules: rules };
+}
+
+export function forgetCategoryRule(data: AppData, key: string): AppData {
+  const rules = { ...data.categoryRules };
+  delete rules[key];
+  return { ...data, categoryRules: rules };
+}
+
+/** Items and schedules sitting in Other that the classifier can place confidently. */
+export function sortableOther(data: AppData): number {
+  const can = (name: string) => categorise(data, name).source !== 'none';
+  return (
+    data.items.filter((i) => i.status !== 'purchased' && i.categoryId === OTHER_CATEGORY_ID && can(i.name)).length +
+    data.recurring.filter((r) => r.categoryId === OTHER_CATEGORY_ID && can(r.name)).length
+  );
+}
+
+/** Files those items under their detected categories. Anything unrecognised stays in Other. */
+export function sortOther(data: AppData): AppData {
+  const place = <T extends { name: string; categoryId: string }>(x: T): T =>
+    x.categoryId === OTHER_CATEGORY_ID ? { ...x, categoryId: resolveCategory(data, x.name, x.categoryId) } : x;
+  return {
+    ...data,
+    items: data.items.map((i) => (i.status === 'purchased' ? i : place(i))),
+    recurring: data.recurring.map(place),
+  };
+}
+
 /* ---------- quick entry: pasted lists, recipes, barcodes ---------- */
 
 /**
@@ -435,7 +492,6 @@ export function addParsed(data: AppData, lines: ParsedLine[], now: Date): AppDat
   for (const line of lines) {
     if (findDuplicates(line.name, next.items).length) continue;
     const stats = known.get(normalizeName(line.name));
-    const schedule = data.recurring.find((r) => normalizeName(r.name) === normalizeName(line.name));
     const price =
       stats?.usualUnitPrice !== undefined && stats.unit === line.unit
         ? Math.round(stats.usualUnitPrice * line.quantity * 100) / 100
@@ -445,7 +501,7 @@ export function addParsed(data: AppData, lines: ParsedLine[], now: Date): AppDat
       {
         ...line,
         estimatedPrice: price,
-        categoryId: stats?.categoryId ?? schedule?.categoryId ?? data.settings.defaultCategoryId,
+        categoryId: autoCategory(data, line.name),
         priority: 'normal',
       },
       now,

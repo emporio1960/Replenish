@@ -1,18 +1,21 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Repeat } from 'lucide-react';
 import { PRIORITIES, UNITS, type FrequencyKind, type Priority, type ShoppingItem, type Unit } from '../types';
 import { findDuplicates, normalizeName } from '../lib/duplicates';
 import { buildItemStats, type ItemStats } from '../lib/replenishment';
 import { formatMoney, formatQty, parseNumber, uid } from '../lib/format';
 import { FREQUENCIES } from '../lib/recurrence';
-import { addItem, addRecurring, updateItem, type ItemInput } from '../state/actions';
+import { categoryById } from '../lib/categories';
+import { categorise } from '../lib/classify';
+import { parseLine } from '../lib/parseList';
+import { addItem, addRecurring, autoCategory, learnCategory, updateItem, type ItemInput } from '../state/actions';
 import { useStore } from '../state/store';
-import { Field, Modal, Segmented, Toggle } from './ui';
+import { CategoryIcon, Field, Modal, Segmented, Toggle } from './ui';
 
 const PRIORITY_LABEL: Record<Priority, string> = { low: 'Low', normal: 'Normal', high: 'High' };
 
 export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Partial<ItemInput> }) {
-  const { data, today, apply, closeModal, toast } = useStore();
+  const { data, today, apply, closeModal, toast, openModal } = useStore();
   const base = item ?? preset ?? {};
   const [name, setName] = useState(base.name ?? '');
   const [quantity, setQuantity] = useState(String(base.quantity ?? 1));
@@ -20,6 +23,15 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
   const [price, setPrice] = useState(base.estimatedPrice !== undefined ? String(base.estimatedPrice) : '');
   const [paid, setPaid] = useState(item?.actualPrice !== undefined ? String(item.actualPrice) : '');
   const [categoryId, setCategoryId] = useState(base.categoryId ?? data.settings.defaultCategoryId);
+  // New items are categorised from their name as it is typed, until the user picks a category themselves.
+  const [autoCat, setAutoCat] = useState(!item && base.categoryId === undefined);
+  const categoryRef = useRef<HTMLSelectElement>(null);
+  const detected = categorise(data, name);
+
+  function changeName(value: string) {
+    setName(value);
+    if (autoCat) setCategoryId(autoCategory(data, value));
+  }
   const [priority, setPriority] = useState<Priority>(base.priority ?? 'normal');
   const [notes, setNotes] = useState(base.notes ?? '');
   const [storeId, setStoreId] = useState(base.storeId ?? '');
@@ -39,7 +51,7 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
     setName(s.name);
     setQuantity(String(s.typicalQuantity));
     setUnit(s.unit);
-    setCategoryId(s.categoryId);
+    setCategoryId(autoCat ? autoCategory(data, s.name) : categoryId);
     setPrice(s.usualUnitPrice !== undefined ? (s.usualUnitPrice * s.typicalQuantity).toFixed(2) : '');
   }
   const [repeat, setRepeat] = useState(false);
@@ -66,10 +78,14 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
     }
     setErrors(e);
     if (Object.keys(e).length) return null;
+    // "2 litres of milk" typed into the name: move the amount into quantity and unit,
+    // as long as those fields were left alone.
+    const typed = !item && quantity.trim() === '1' && unit === 'units' ? parseLine(name) : null;
+    const split = typed && (typed.quantity !== 1 || typed.unit !== 'units') ? typed : null;
     return {
-      name: name.trim(),
-      quantity: q!,
-      unit,
+      name: split ? split.name : name.trim(),
+      quantity: split ? split.quantity : q!,
+      unit: split ? split.unit : unit,
       estimatedPrice: p,
       categoryId,
       notes,
@@ -100,9 +116,18 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
           })
         : addItem(d, input, now, id);
       if (schedule) next = addRecurring(next, schedule, now, id);
+      // A category the user chose by hand becomes a rule for this product.
+      const corrected = item ? input.categoryId !== item.categoryId : !autoCat;
+      if (corrected) next = learnCategory(next, input.name, input.categoryId);
       return next;
     });
-    toast(item ? `Saved ${input.name}` : `Added ${input.name}`);
+    if (item) toast(`Saved ${input.name}`);
+    else {
+      toast(`Added ${input.name} to ${categoryById(data.categories, input.categoryId).name}`, {
+        label: 'Change',
+        run: () => openModal({ type: 'item', itemId: id }),
+      });
+    }
     closeModal();
   }
 
@@ -179,12 +204,28 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
             data-autofocus
             value={name}
             maxLength={80}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => changeName(e.target.value)}
             placeholder="Such as milk or dishwasher tablets"
             autoComplete="off"
             aria-invalid={Boolean(errors.name)}
           />
         </Field>
+        {!item && name.trim() !== '' && (
+          <button type="button" className="auto-cat" onClick={() => categoryRef.current?.focus()} aria-label={`Category: ${categoryById(data.categories, categoryId).name}. Change category`}>
+            <CategoryIcon category={categoryById(data.categories, categoryId)} size={26} />
+            <span>
+              <strong>{categoryById(data.categories, categoryId).name}</strong>
+              <em>
+                {!autoCat ? 'Chosen by you'
+                  : detected.source === 'learned' ? 'From your earlier correction'
+                  : detected.source === 'history' ? 'As you bought it before'
+                  : detected.source === 'none' ? 'Not recognised, so filed here'
+                  : 'Detected automatically'}
+              </em>
+            </span>
+            <span className="link">Change</span>
+          </button>
+        )}
         {matches.length > 0 && (
           <div className="suggest" role="group" aria-label="Products you have bought before">
             {matches.map((s) => (
@@ -223,7 +264,7 @@ export function ItemForm({ item, preset }: { item?: ShoppingItem; preset?: Parti
           )}
         </div>
         <Field label="Category">
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <select ref={categoryRef} value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setAutoCat(false); }}>
             {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </Field>

@@ -1,13 +1,13 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import {
-  Apple, Bath, Croissant, CupSoda, Fish, Milk, PawPrint, Pill, ShoppingBasket, Snowflake,
+  Apple, Bath, Croissant, CupSoda, Fish, Milk, Package, PawPrint, Pill, ShoppingBasket, Snowflake,
   SprayCan, Tag, Wheat, X, type LucideIcon,
 } from 'lucide-react';
 import type { Category } from '../types';
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   apple: Apple, fish: Fish, milk: Milk, croissant: Croissant, wheat: Wheat, snowflake: Snowflake,
-  cup: CupSoda, spray: SprayCan, bath: Bath, paw: PawPrint, pill: Pill, basket: ShoppingBasket, tag: Tag,
+  cup: CupSoda, spray: SprayCan, bath: Bath, paw: PawPrint, pill: Pill, basket: ShoppingBasket, tag: Tag, box: Package,
 };
 
 export function CategoryIcon({ category, size = 36 }: { category: Category; size?: number }) {

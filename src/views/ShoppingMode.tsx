@@ -4,7 +4,10 @@ import type { ShoppingItem } from '../types';
 import { storeCategoryOrder } from '../lib/categories';
 import { findDuplicates } from '../lib/duplicates';
 import { formatMoney, formatQty, plural } from '../lib/format';
-import { addItem, clearPurchased, purchaseItem, undoPurchase, updateSettings } from '../state/actions';
+import { categoryById } from '../lib/categories';
+import { parseLine } from '../lib/parseList';
+import { addItem, autoCategory, clearPurchased, purchaseItem, undoPurchase, updateSettings } from '../state/actions';
+import { uid } from '../lib/format';
 import { useStore } from '../state/store';
 import { useDeleteItem } from '../components/Modals';
 import { CategoryIcon, ProgressBar } from '../components/ui';
@@ -31,11 +34,16 @@ export function ShoppingMode() {
   const remaining = active.reduce((s, i) => s + (i.estimatedPrice ?? 0), 0);
   const groups = groupByCategory(active, aisles);
 
-  function add(itemName: string) {
-    apply((d) =>
-      addItem(d, { name: itemName, quantity: 1, unit: 'units', categoryId: d.settings.defaultCategoryId, priority: 'normal', storeId: store?.id }, new Date()),
-    );
-    toast(`Added ${itemName}`);
+  function add(typed: string) {
+    // "2 kg potatoes" works here too, and the item is filed under its detected category.
+    const line = parseLine(typed) ?? { name: typed, quantity: 1, unit: 'units' as const };
+    const id = uid();
+    const categoryId = autoCategory(data, line.name);
+    apply((d) => addItem(d, { ...line, categoryId, priority: 'normal', storeId: store?.id }, new Date(), id));
+    toast(`Added ${line.name} to ${categoryById(data.categories, categoryId).name}`, {
+      label: 'Change',
+      run: () => openModal({ type: 'item', itemId: id }),
+    });
   }
 
   function quickAdd(e: FormEvent) {
@@ -43,7 +51,7 @@ export function ShoppingMode() {
     const trimmed = name.trim();
     if (!trimmed) return;
     setName('');
-    const dup = findDuplicates(trimmed, data.items)[0];
+    const dup = findDuplicates(parseLine(trimmed)?.name ?? trimmed, data.items)[0];
     if (dup) {
       toast(
         dup.status === 'deferred' ? `${dup.name} is already deferred` : `${dup.name} is already on your list`,

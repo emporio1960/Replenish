@@ -14,6 +14,10 @@ const UNIT_WORDS: Record<string, Unit> = {
   pack: 'packs', packs: 'packs', pk: 'packs', pkt: 'packs', packet: 'packs', packets: 'packs',
   bottle: 'bottles', bottles: 'bottles', btl: 'bottles',
   unit: 'units', units: 'units', x: 'units',
+  // Containers count as plain units: "2 cartons of milk" is 2 × milk.
+  carton: 'units', cartons: 'units', tin: 'units', tins: 'units', can: 'units', cans: 'units', jar: 'units', jars: 'units',
+  bag: 'units', bags: 'units', box: 'units', boxes: 'units', tub: 'units', tubs: 'units', punnet: 'units', punnets: 'units',
+  bunch: 'units', bunches: 'units', tray: 'units', trays: 'units', roll: 'units', rolls: 'units',
 };
 const UNIT_PATTERN = Object.keys(UNIT_WORDS).sort((a, b) => b.length - a.length).join('|');
 const NUM = '(\\d+(?:[.,]\\d+)?)';

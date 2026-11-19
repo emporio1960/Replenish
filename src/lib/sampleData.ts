@@ -29,7 +29,7 @@ const PRODUCTS: Product[] = [
   { name: 'Coffee beans', quantity: 500, unit: 'g', price: 18, categoryId: 'beverages', every: 21, jitter: [0, 2, -2], last: 19 },
   { name: 'Chicken thighs', quantity: 1, unit: 'kg', price: 13.5, categoryId: 'meat', every: 7, jitter: [0, 3, -2, 4, 0], last: 5 },
   { name: 'Dog food', quantity: 1, unit: 'packs', price: 42, categoryId: 'pet', every: 28, jitter: [0, 1], last: 26 },
-  { name: 'Toilet paper', quantity: 1, unit: 'packs', price: 11, categoryId: 'cleaning', every: 30, jitter: [0, -3], last: 12 },
+  { name: 'Toilet paper', quantity: 1, unit: 'packs', price: 11, categoryId: 'household', every: 30, jitter: [0, -3], last: 12 },
   { name: 'Olive oil', quantity: 750, unit: 'ml', price: 14, categoryId: 'pantry', every: 45, jitter: [0], last: 40 },
   { name: 'Frozen peas', quantity: 1, unit: 'packs', price: 3.2, categoryId: 'frozen', every: 20, jitter: [0, 6, -5], last: 9 },
 ];
@@ -128,7 +128,7 @@ export function buildSampleData(todayStr: string): {
   const stores: Store[] = [
     {
       id: 'sample-s-market', name: 'Supermarket', sample: true,
-      aisleOrder: ['produce', 'bakery', 'meat', 'dairy', 'pantry', 'beverages', 'frozen', 'cleaning', 'personal', 'health', 'pet', 'other'],
+      aisleOrder: ['produce', 'bakery', 'meat', 'dairy', 'pantry', 'beverages', 'frozen', 'cleaning', 'household', 'personal', 'health', 'pet', 'other'],
     },
     { id: 'sample-s-chemist', name: 'Chemist', sample: true, aisleOrder: ['health', 'personal'] },
   ];
