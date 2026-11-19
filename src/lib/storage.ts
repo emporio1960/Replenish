@@ -5,6 +5,8 @@ import {
   type Category,
   type DateFormat,
   type DeferralEvent,
+  type ImportRecord,
+  type ImportSource,
   type Frequency,
   type FrequencyKind,
   type Notice,
@@ -27,7 +29,7 @@ import { uid } from './format';
 import { defaultAppearance, sanitizeAppearance } from '../theme/engine';
 
 export const STORAGE_KEY = 'replenish:data';
-export const CURRENT_VERSION = 4;
+export const CURRENT_VERSION = 5;
 
 /**
  * Persistence boundary. The app only talks to this interface, so a cloud
@@ -104,6 +106,7 @@ export function defaultData(): AppData {
     notices: [],
     stores: [],
     recipes: [],
+    imports: [],
     categoryRules: {},
     barcodes: {},
     onboarded: false,
@@ -358,6 +361,10 @@ function migrate(raw: Raw): Raw {
         // category, which sanitizeCategories adds for existing saves).
         data = { ...data, categoryRules: data.categoryRules ?? {} };
         break;
+      case 4:
+        // Version 5 added the import history.
+        data = { ...data, imports: data.imports ?? [] };
+        break;
       case 3:
         // Version 4 added appearance settings (themes). Older saves get the
         // original Replenish theme, so nothing looks different until chosen.
@@ -416,6 +423,24 @@ export function sanitize(input: unknown): AppData {
     }
   }
 
+  const imports: ImportRecord[] = arr(raw.imports)
+    .filter(isObj)
+    .filter((r) => isValidIso(r.at))
+    .map((r) => ({
+      id: id(r.id),
+      source: oneOf<ImportSource>(r.source, ['reminders', 'notes', 'file', 'shared', 'shortcut'], 'file'),
+      listName: optText(r.listName, 80),
+      at: r.at as string,
+      added: count(r.added),
+      merged: count(r.merged),
+      replaced: count(r.replaced),
+      skipped: count(r.skipped),
+      itemIds: arr(r.itemIds).filter((x): x is string => typeof x === 'string').slice(0, 600),
+      before: arr(r.before).map((i) => sanitizeItem(i, catIds, now)).filter(keep),
+      undone: flag(r.undone),
+    }))
+    .slice(-30);
+
   const replenishPrefs: Record<string, ReplenishPref> = {};
   if (isObj(raw.replenishPrefs)) {
     for (const [key, value] of Object.entries(raw.replenishPrefs)) {
@@ -455,6 +480,7 @@ export function sanitize(input: unknown): AppData {
     notices,
     stores,
     recipes: unique(sanitizeRecipes(raw.recipes)),
+    imports,
     categoryRules,
     barcodes,
     onboarded: bool(raw.onboarded, items.length + recurring.length + history.length > 0),

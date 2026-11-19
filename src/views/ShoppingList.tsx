@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   CalendarClock, Check, ChevronDown, ClipboardList, Ellipsis, ListChecks, Minus, Plus, Repeat, ScanBarcode, Search,
-  ShoppingCart, Undo2,
+  Share2, ShoppingCart, Undo2,
 } from 'lucide-react';
 import type { Category, Priority, ShoppingItem, SortKey } from '../types';
 import { listTotals } from '../lib/analytics';
@@ -191,6 +191,9 @@ export function ShoppingList() {
             </button>
             <button type="button" className="btn" onClick={() => openModal({ type: 'scan' })}>
               <ScanBarcode size={17} aria-hidden="true" /> Scan
+            </button>
+            <button type="button" className="btn" onClick={() => go('transfer')}>
+              <Share2 size={17} aria-hidden="true" /> Import &amp; share
             </button>
           </>
         }

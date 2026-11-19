@@ -1,5 +1,5 @@
 import {
-  CalendarClock, ChartColumn, ChefHat, LayoutDashboard, Lightbulb, ListChecks, ReceiptText, Repeat, Settings,
+  ArrowLeftRight, CalendarClock, ChartColumn, ChefHat, LayoutDashboard, Lightbulb, ListChecks, ReceiptText, Repeat, Settings,
   type LucideIcon,
 } from 'lucide-react';
 import type { ViewId } from '../types';
@@ -18,6 +18,7 @@ export const NAV: NavItem[] = [
   { id: 'recurring', label: 'Recurring', short: 'Recurring', icon: Repeat },
   { id: 'suggestions', label: 'Suggestions', short: 'Suggestions', icon: Lightbulb },
   { id: 'meals', label: 'Meals', short: 'Meals', icon: ChefHat },
+  { id: 'transfer', label: 'Import & Share', short: 'Import & Share', icon: ArrowLeftRight },
   { id: 'history', label: 'Purchase History', short: 'History', icon: ReceiptText },
   { id: 'analytics', label: 'Analytics', short: 'Analytics', icon: ChartColumn },
   { id: 'settings', label: 'Settings', short: 'Settings', icon: Settings },

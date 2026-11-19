@@ -122,6 +122,25 @@ export interface ReplenishPref {
   stock?: { quantity: number; unit: Unit; day: string };
 }
 
+export type ImportSource = 'reminders' | 'notes' | 'file' | 'shared' | 'shortcut';
+
+/** One completed import, kept so it can be reviewed and undone. */
+export interface ImportRecord {
+  id: string;
+  source: ImportSource;
+  listName?: string;
+  at: string;
+  added: number;
+  merged: number;
+  replaced: number;
+  skipped: number;
+  /** Ids of the items this import created. */
+  itemIds: string[];
+  /** Items as they were before this import merged into or replaced them. */
+  before: ShoppingItem[];
+  undone?: boolean;
+}
+
 export interface Store {
   id: string;
   name: string;
@@ -256,6 +275,7 @@ export interface AppData {
   notices: Notice[];
   stores: Store[];
   recipes: Recipe[];
+  imports: ImportRecord[];
   /** Product key -> category id: corrections the user made, which override the built-in rules. */
   categoryRules: Record<string, string>;
   /** Barcode number -> product name, learned as the user scans. */
@@ -274,4 +294,5 @@ export type ViewId =
   | 'analytics'
   | 'settings'
   | 'appearance'
+  | 'transfer'
   | 'shop';

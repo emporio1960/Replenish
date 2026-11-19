@@ -9,6 +9,11 @@
   "background_color": "#f3f1f4",
   "theme_color": "#6b2d5c",
   "categories": ["shopping", "lifestyle", "productivity"],
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

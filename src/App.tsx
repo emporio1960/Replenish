@@ -15,6 +15,7 @@ import { Settings } from './views/Settings';
 import { ShoppingList } from './views/ShoppingList';
 import { ShoppingMode } from './views/ShoppingMode';
 import { Suggestions } from './views/Suggestions';
+import { Transfer } from './views/Transfer';
 import type { ViewId } from './types';
 
 function Logo() {
@@ -42,6 +43,7 @@ const VIEW: Record<Exclude<ViewId, 'shop'>, () => React.JSX.Element> = {
   analytics: Analytics,
   settings: Settings,
   appearance: Appearance,
+  transfer: Transfer,
 };
 
 function Shell() {

@@ -197,6 +197,7 @@ export function combine(local: AppData, remote: AppData): AppData {
     categories: union(local.categories, remote.categories),
     stores: union(local.stores, remote.stores),
     recipes: union(local.recipes, remote.recipes),
+    imports: union(local.imports, remote.imports),
     notices: union(local.notices, remote.notices),
     barcodes: { ...remote.barcodes, ...local.barcodes },
     categoryRules: { ...remote.categoryRules, ...local.categoryRules },

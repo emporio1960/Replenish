@@ -838,3 +838,54 @@ main:focus { outline: none; }
 .field input[type='range'] { padding: 0; min-height: 44px; background: transparent; border: 0; accent-color: var(--accent); }
 .appearance-link { display: grid; gap: 14px; align-items: center; }
 @media (min-width: 620px) { .appearance-link { grid-template-columns: minmax(200px, 260px) 1fr; } }
+
+/* ---------- Import & Share ---------- */
+.transfer-cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.app-tile { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; flex: none; color: var(--accent-ink); background: var(--accent); }
+.tile-notes { background: var(--secondary); color: var(--surface); }
+.tile-share { background: var(--tertiary); color: var(--surface); }
+.steps-bar { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 14px; font-size: 13.5px; color: var(--ink-3); }
+.steps-bar li { display: flex; align-items: center; gap: 7px; }
+.steps-bar span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); font-weight: 700; font-size: 12px; color: var(--ink-2); }
+.steps-bar .is-current { color: var(--ink); font-weight: 650; }
+.steps-bar .is-current span { background: var(--accent); color: var(--accent-ink); }
+.steps-bar .is-done span { background: var(--good-soft); color: var(--good); }
+.import-facts { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.import-facts dd { font-family: var(--display); font-size: 22px; font-weight: 650; }
+.import-rows { display: grid; gap: 10px; margin-top: 12px; }
+.import-row { display: grid; gap: 10px; padding: 14px; }
+.import-row.is-off { opacity: 0.62; }
+.import-top { display: flex; align-items: center; gap: 10px; }
+.pick { width: 24px; height: 24px; flex: none; accent-color: var(--accent); }
+.import-name, .import-qty, .import-fields select {
+  min-height: 42px; padding: 0 10px; border-radius: var(--radius-s); border: 1px solid var(--line); background: var(--surface-2); outline: none; min-width: 0;
+}
+.import-name:focus, .import-qty:focus, .import-fields select:focus { border-color: var(--accent); }
+.import-name { flex: 1; font-weight: 600; }
+.import-fields { display: grid; grid-template-columns: 72px 92px 1fr; gap: 8px; }
+.import-row .row-chips { margin-top: 0; }
+.import-row .chip { white-space: normal; }
+.import-action { flex: none; }
+.import-bar {
+  position: sticky; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 8px); z-index: 4; margin-top: 14px;
+  display: grid; gap: 8px; padding: 10px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--line);
+}
+@media (min-width: 960px) { .import-bar { bottom: 12px; } }
+.share-preview {
+  white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px;
+  line-height: 1.5; max-height: 46dvh; overflow: auto; margin: 0;
+}
+.share-actions { margin-top: 12px; }
+a.btn { text-decoration: none; }
+.choose-items { display: grid; gap: 2px; padding: 8px 0; max-height: 40dvh; overflow-y: auto; }
+.choose-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
+.choose-item input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.choose-item span:nth-child(2) { flex: 1; }
+.title-input { width: min(100%, 220px); font-family: var(--body); }
+.support-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; color: var(--ink-2); font-size: 14.5px; }
+.shortcuts p { color: var(--ink-2); margin-bottom: 8px; }
+.shortcuts .steps { margin: 8px 0; color: var(--ink); }
+.shortcuts code, .link-row code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+.link-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-s); background: var(--surface-2); margin-bottom: 8px; }
+.link-row code { flex: 1; }
+.shortcuts .share-preview { background: var(--surface-2); padding: 10px; border-radius: var(--radius-s); font-size: 12.5px; }

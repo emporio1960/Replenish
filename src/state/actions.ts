@@ -7,6 +7,8 @@ import type {
   AppData,
   Category,
   Frequency,
+  ImportRecord,
+  ImportSource,
   Priority,
   PurchaseRecord,
   Recipe,
@@ -526,6 +528,91 @@ export function deleteRecipe(data: AppData, id: string): AppData {
 /** Remembers which product a barcode belongs to, so the next scan is instant. */
 export function learnBarcode(data: AppData, code: string, name: string): AppData {
   return data.barcodes[code] === name ? data : { ...data, barcodes: { ...data.barcodes, [code]: name.trim() } };
+}
+
+/* ---------- importing lists from other apps ---------- */
+
+export interface ImportEntry {
+  name: string;
+  quantity: number;
+  unit: Unit;
+  notes?: string;
+  categoryId: string;
+  /** What to do with it: add as new, skip, add its quantity to an existing item, or overwrite that item. */
+  action: 'add' | 'skip' | 'merge' | 'replace';
+  existingId?: string;
+  /** The user changed the category in the preview, so remember it as a rule. */
+  corrected?: boolean;
+}
+
+/**
+ * Applies a reviewed import in one step and records it so it can be undone.
+ * Existing items are only changed where the user chose merge or replace, and
+ * their previous state is kept in the record.
+ */
+export function importItems(
+  data: AppData, entries: ImportEntry[], meta: { source: ImportSource; listName?: string }, now: Date,
+): AppData {
+  let next = data;
+  const record: ImportRecord = {
+    id: uid(), source: meta.source, listName: meta.listName?.trim() || undefined, at: now.toISOString(),
+    added: 0, merged: 0, replaced: 0, skipped: 0, itemIds: [], before: [],
+  };
+  const remember = (item: ShoppingItem) => {
+    if (!record.before.some((b) => b.id === item.id)) record.before.push(item);
+  };
+  for (const e of entries) {
+    const name = e.name.trim().slice(0, 80);
+    const valid = name && Number.isFinite(e.quantity) && e.quantity > 0 && data.categories.some((c) => c.id === e.categoryId);
+    if (e.action === 'skip' || !valid) {
+      record.skipped += 1;
+      continue;
+    }
+    const existing = e.existingId ? next.items.find((i) => i.id === e.existingId && i.status !== 'purchased') : undefined;
+    if (e.action === 'merge' && existing && existing.unit === e.unit) {
+      remember(existing);
+      next = updateItem(next, existing.id, { quantity: Number((existing.quantity + e.quantity).toFixed(2)) });
+      record.merged += 1;
+    } else if (e.action === 'replace' && existing) {
+      remember(existing);
+      next = updateItem(next, existing.id, {
+        name, quantity: e.quantity, unit: e.unit, categoryId: e.categoryId, notes: e.notes?.trim() || existing.notes,
+      });
+      record.replaced += 1;
+    } else {
+      const id = uid();
+      next = addItem(next, { name, quantity: e.quantity, unit: e.unit, notes: e.notes, categoryId: e.categoryId, priority: 'normal' }, now, id);
+      record.itemIds.push(id);
+      record.added += 1;
+    }
+    if (e.corrected) next = learnCategory(next, name, e.categoryId);
+  }
+  // Only the most recent imports keep their undo snapshots, to stay small.
+  const earlier = next.imports.map((r, i, all) => (i < all.length - 4 ? { ...r, before: [] } : r));
+  return { ...next, imports: [...earlier, record].slice(-30) };
+}
+
+/** Whether an import can still be undone: it changed something and has not been undone already. */
+export function canUndoImport(record: ImportRecord): boolean {
+  return !record.undone && record.itemIds.length + record.before.length > 0;
+}
+
+/**
+ * Reverses an import: removes the items it added (unless they have since been
+ * bought) and puts merged or replaced items back as they were.
+ */
+export function undoImport(data: AppData, id: string): AppData {
+  const record = data.imports.find((r) => r.id === id);
+  if (!record || !canUndoImport(record)) return data;
+  const added = new Set(record.itemIds);
+  const before = new Map(record.before.map((b) => [b.id, b]));
+  return {
+    ...data,
+    items: data.items
+      .filter((i) => !(added.has(i.id) && i.status !== 'purchased'))
+      .map((i) => (before.has(i.id) && i.status !== 'purchased' ? before.get(i.id)! : i)),
+    imports: data.imports.map((r) => (r.id === id ? { ...r, undone: true, before: [] } : r)),
+  };
 }
 
 /* ---------- stores ---------- */

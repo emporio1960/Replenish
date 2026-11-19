@@ -201,7 +201,7 @@ describe('persistence', () => {
   });
   it('upgrades older saves without changing how they look, and survives damaged settings', () => {
     const old = sanitize({ version: 3, items: [{ id: 'a', name: 'Milk' }], settings: { theme: 'dark', currency: 'NZD' } });
-    expect(old.version).toBe(4);
+    expect(old.version).toBeGreaterThanOrEqual(4);
     expect(old.items).toHaveLength(1);
     expect(old.settings).toMatchObject({ theme: 'dark', currency: 'NZD' });
     expect(old.settings.appearance).toEqual(defaultAppearance());

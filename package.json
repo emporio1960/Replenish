@@ -1,6 +1,6 @@
 {
   "name": "replenish",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Replenish: an intelligent shopping list and household purchasing manager.",
   "scripts": {
     "dev": "vite",

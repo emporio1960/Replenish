@@ -11,6 +11,7 @@ import {
 import type { AppData, Recipe, RecurringPurchase, ShoppingItem, ViewId } from '../types';
 import { notifyDevice } from '../lib/notify';
 import { today as todayNow } from '../lib/dates';
+import { captureIncoming } from '../lib/incoming';
 import { buildAlerts, type Alert } from '../lib/insights';
 import { buildRecommendations, type Recommendation } from '../lib/replenishment';
 import { loadData, saveData } from '../lib/storage';
@@ -62,7 +63,7 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 const VIEWS: ViewId[] = [
-  'dashboard', 'list', 'deferred', 'recurring', 'suggestions', 'meals', 'history', 'analytics', 'settings', 'appearance', 'shop',
+  'dashboard', 'list', 'deferred', 'recurring', 'suggestions', 'meals', 'history', 'analytics', 'settings', 'appearance', 'transfer', 'shop',
 ];
 
 /** The view named in the address bar (#/list), or null when there is none. */
@@ -74,7 +75,8 @@ function viewFromHash(): ViewId | null {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(() => processDue(loadData(), new Date()));
   const [today, setToday] = useState(todayNow);
-  const [view, setView] = useState<ViewId>(() => viewFromHash() ?? 'dashboard');
+  // A list handed over by a Shortcut or the share sheet opens the import screen.
+  const [view, setView] = useState<ViewId>(() => (captureIncoming() ? 'transfer' : (viewFromHash() ?? 'dashboard')));
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -123,6 +125,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     }
     const onHash = () => {
+      if (captureIncoming()) {
+        setView('transfer');
+        setModal(null);
+        return;
+      }
       const next = viewFromHash();
       if (!next) return;
       setView(next);

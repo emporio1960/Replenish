@@ -10,6 +10,7 @@ It is a client-side React app. There is no backend, account or paid API: everyth
 - **Shopping List**: add, edit, delete, tick off and undo; quantities and units; estimated prices; categories (including your own); notes; priorities; search, filter, sort and grouping.
 - **Automatic categories**: new items are filed under the right category from their name ("2 litres of milk" goes to Dairy and eggs, "batteries" to Household essentials), in collapsible category sections. Change a category and Replenish remembers it for that product.
 - **Themes**: 13 themes plus four seasonal ones, each with its own light and dark colours, and an editor for making your own. Optional gradients, glass, ambient light and automatic switching by time of day, season or occasion.
+- **Import & Share**: bring shopping lists in from Apple Reminders and Apple Notes (paste, TXT, CSV or JSON files, or an Apple Shortcut), review them before anything is added, and send your list back out as Reminders-ready text, a Notes checklist, Markdown, CSV or JSON, or through the share sheet, Messages or email.
 - **Deferred**: defer until tomorrow, 3 days, 7 days, next week, a chosen date, or indefinitely, with an optional reason. Items return to the list automatically on their date and are never silently dropped.
 - **Recurring**: daily to quarterly or a custom interval. Due purchases can be added to the list, deferred, skipped once, paused, edited or removed. Buying one works out the next date automatically, and a schedule never creates a duplicate list entry.
 - **Suggestions**: replenishment estimates at three levels (due now, approaching, low priority), each with an explanation of the purchase dates and gaps it is based on. Accept, adjust or dismiss them. Also: frequently bought products, predictable purchase cycles, and items you keep postponing.
@@ -117,6 +118,43 @@ There is no AI service involved. The rules are deliberately simple and visible:
 - **Usual price**: the median price per unit across your purchases. A purchase is flagged when its unit price is 15% or more above or below that, once there are at least three priced purchases.
 
 These are estimates. Unless you record stock on hand, Replenish does not know what is actually in your cupboard.
+
+## Import & Share (Apple Reminders and Apple Notes)
+
+A website cannot read or write Reminders or Notes. Replenish therefore moves lists by the routes that do work, and says so in the app.
+
+**Importing**
+
+- Paste a list, choose a TXT, CSV or JSON file, or hand one over from an Apple Shortcut.
+- The parser (`src/lib/importParser.ts`) understands bullets, numbered lists, checkboxes (`- [ ]`, `- [x]`, ☐, ☑, ✓), quantities and units ("2L milk"), notes in brackets or after a dash, group headings and a list title, and skips explanatory text. CSV works with or without a header row. Items are categorised by the same classifier as the rest of the app; an unrecognised item takes the category of the heading it sits under, or Other.
+- Nothing is added without a review. The preview shows what was detected, what is new, what is already in Replenish (on the list, deferred, bought, or on a recurring schedule) and what was ticked off in the original. You can select items, edit names, quantities, units and categories, and for each duplicate choose to skip it, merge quantities, import it separately or replace the existing item.
+- Each import is recorded under Import history and can be undone: items it added are removed (unless since bought) and merged or replaced items go back as they were.
+
+**Exporting and sharing**
+
+- Choose items still to buy, the whole list, one category or individual items.
+- Formats: Reminders (one item per line), Notes plain text, Notes with checkbox symbols, Markdown checklist, CSV and JSON. Optional category headings, quantities and a summary line.
+- Send with the system share sheet where the browser has one, or Copy, Save as file, Messages or Email.
+- Only names, quantities, units, categories, notes and bought status are shared. Individual prices, stores, history and identifiers never are.
+
+**What iOS allows**
+
+- Sharing out through the share sheet works on iPhone and iPad.
+- Receiving from the share sheet does not: iOS does not support the Web Share Target API, so a website cannot appear there. The manifest still registers a share target, which works for the installed app on Android and desktop Chrome. On iPhone, the in-app guide shows how to make a "Send to Replenish" shortcut that adds a share-sheet entry of your own.
+- Pasting several lines into Reminders usually creates one reminder per line on iPhone, but this varies by version; the guide's "Replenish to Reminders" shortcut is the dependable way.
+
+**Import link for Shortcuts**
+
+`https://<your-site>/Replenish/#import=<URL-encoded list>` opens the review screen with that list. The list may be plain lines or JSON:
+
+```json
+{"list": "Groceries", "items": [
+  {"title": "Milk", "quantity": 2, "unit": "L", "completed": false, "notes": "full cream"},
+  {"title": "Bread", "completed": true}
+]}
+```
+
+The part of an address after `#` is not sent to the server, the data is validated, and it is never imported without confirmation. On iPhone, links from Shortcuts open in Safari, which keeps data separately from the Home Screen app unless sync is on; the in-app guide gives a clipboard version of each shortcut for that case. Replenish does not ship or install shortcut files: the guide lists the actions to add.
 
 ## Themes and appearance
 
