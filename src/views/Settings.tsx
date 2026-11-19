@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Check, Download, Pencil, Plus, Trash, Upload, X } from 'lucide-react';
+import { Check, Download, Palette, Pencil, Plus, Trash, Upload, X } from 'lucide-react';
 import type { Category, DateFormat, SortKey, Theme } from '../types';
 import { formatDate, formatTime } from '../lib/dates';
 import { CURRENCIES, formatMoney, parseNumber, plural } from '../lib/format';
@@ -10,6 +10,8 @@ import {
 } from '../state/actions';
 import { useStore } from '../state/store';
 import { CategoryIcon, Field, PageHeader, Section, Segmented, Toggle } from '../components/ui';
+import { useTheme } from '../theme/ThemeProvider';
+import { ThemePreview } from './Appearance';
 import { AppSettings, CategorySmartSettings, SpendingBudgetSettings, StoresSettings, SyncSettings } from './SettingsExtras';
 
 declare const __APP_VERSION__: string;
@@ -84,7 +86,8 @@ function CategoryRow({ category }: { category: Category }) {
 }
 
 export function Settings() {
-  const { data, apply, openModal, toast, saveFailed, sync } = useStore();
+  const { data, apply, openModal, toast, saveFailed, sync, go } = useStore();
+  const { theme: showing, mode, autoReason } = useTheme();
   const s = data.settings;
   const set = (patch: Partial<typeof s>) => apply((d) => updateSettings(d, patch));
   const [budget, setBudget] = useState(s.budget !== null ? String(s.budget) : '');
@@ -167,16 +170,25 @@ export function Settings() {
         <SyncSettings />
       </Section>
 
-      <Section title="Appearance">
-        <div className="card settings">
-          <div className="setting">
-            <span className="setting-label">Theme</span>
+      <Section title="Appearance and personalisation">
+        <div className="card appearance-link">
+          <ThemePreview theme={showing} mode={mode} appearance={s.appearance} />
+          <div className="stack">
+            <div>
+              <strong>{showing.name}</strong>
+              <p className="muted">
+                {autoReason ? `Chosen automatically for ${autoReason.toLowerCase()}` : showing.blurb}, {mode} appearance
+              </p>
+            </div>
             <Segmented<Theme>
-              label="Theme"
+              label="Appearance mode"
               value={s.theme}
               onChange={(theme) => set({ theme })}
-              options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'Match device' }]}
+              options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'System' }]}
             />
+            <button type="button" className="btn btn-primary" onClick={() => go('appearance')}>
+              <Palette size={16} aria-hidden="true" /> Themes, colours and effects
+            </button>
           </div>
         </div>
       </Section>

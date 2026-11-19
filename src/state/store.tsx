@@ -62,7 +62,7 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 const VIEWS: ViewId[] = [
-  'dashboard', 'list', 'deferred', 'recurring', 'suggestions', 'meals', 'history', 'analytics', 'settings', 'shop',
+  'dashboard', 'list', 'deferred', 'recurring', 'suggestions', 'meals', 'history', 'analytics', 'settings', 'appearance', 'shop',
 ];
 
 /** The view named in the address bar (#/list), or null when there is none. */
@@ -145,21 +145,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     window.scrollTo({ top: 0 });
   }, []);
-
-  const theme = data.settings.theme;
-  useEffect(() => {
-    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
-    const set = () => {
-      const dark = theme === 'dark' || (theme === 'system' && Boolean(media?.matches));
-      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-      document
-        .querySelector('meta[name="theme-color"]')
-        ?.setAttribute('content', dark ? '#17141a' : '#f3f1f4');
-    };
-    set();
-    media?.addEventListener?.('change', set);
-    return () => media?.removeEventListener?.('change', set);
-  }, [theme]);
 
   const dismissToast = useCallback((id: string) => {
     window.clearTimeout(timers.current.get(id));

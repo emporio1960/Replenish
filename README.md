@@ -9,6 +9,7 @@ It is a client-side React app. There is no backend, account or paid API: everyth
 - **Dashboard**: list progress, estimated spend against budget, upcoming recurring purchases, replenishment reminders and a plain-language summary built from your own data.
 - **Shopping List**: add, edit, delete, tick off and undo; quantities and units; estimated prices; categories (including your own); notes; priorities; search, filter, sort and grouping.
 - **Automatic categories**: new items are filed under the right category from their name ("2 litres of milk" goes to Dairy and eggs, "batteries" to Household essentials), in collapsible category sections. Change a category and Replenish remembers it for that product.
+- **Themes**: 13 themes plus four seasonal ones, each with its own light and dark colours, and an editor for making your own. Optional gradients, glass, ambient light and automatic switching by time of day, season or occasion.
 - **Deferred**: defer until tomorrow, 3 days, 7 days, next week, a chosen date, or indefinitely, with an optional reason. Items return to the list automatically on their date and are never silently dropped.
 - **Recurring**: daily to quarterly or a custom interval. Due purchases can be added to the list, deferred, skipped once, paused, edited or removed. Buying one works out the next date automatically, and a schedule never creates a duplicate list entry.
 - **Suggestions**: replenishment estimates at three levels (due now, approaching, low priority), each with an explanation of the purchase dates and gaps it is based on. Accept, adjust or dismiss them. Also: frequently bought products, predictable purchase cycles, and items you keep postponing.
@@ -117,6 +118,21 @@ There is no AI service involved. The rules are deliberately simple and visible:
 
 These are estimates. Unless you record stock on hand, Replenish does not know what is actually in your cupboard.
 
+## Themes and appearance
+
+Open **Settings > Appearance and personalisation**.
+
+- **Theme and mode are separate.** Pick any theme, then Light, Dark or System. Every theme defines both.
+- **Your own themes.** Start from any theme with Customise, or New theme. Choose six colours for each appearance (primary, secondary, accent, background, card, text), a gradient style, borders and corner radius, with a live preview. Custom themes can be edited, renamed, duplicated and deleted.
+- **Effects.** Interface intensity (Minimal, Balanced, Vibrant), gradients (Off, Subtle, Bold), gradient style (linear, radial, subtle atmospheric, multicolour, animated) and glass (Off, Subtle, Strong).
+- **Automatic themes** are off until you switch them on: by time of day, by season (for either hemisphere) or for special occasions. Choosing a theme by hand switches them off again.
+- **Readability is enforced.** Whatever colours a theme starts from, the engine shifts any colour used for text until it meets WCAG AA (4.5:1, and 7:1 for main text) on every surface, and picks black or white text for filled buttons and gradients. This applies to custom themes too.
+- **Motion.** Theme changes fade smoothly and animated gradients drift slowly; both stop when the device asks for reduced motion or Animations is off.
+
+How it works: `src/theme/themes.ts` holds the theme definitions, `src/theme/engine.ts` turns a theme plus your settings into design tokens (CSS custom properties) and `src/theme/ThemeProvider.tsx` writes them to the page. All styling in `src/styles/index.css` reads those tokens, so switching theme repaints the app without re-rendering components. The last tokens are cached so the next launch paints in the right theme immediately. To add a built-in theme, add one entry to `BUILT_IN_THEMES`.
+
+The camera view in the barcode scanner is the one place that keeps fixed colours.
+
 ## Project structure
 
 ```
@@ -126,6 +142,7 @@ src/
                       analytics, insights, storage and validation, demo data,
                       list parsing, automatic categorisation, barcode scanning,
                       device notifications, sync
+  theme/              Theme definitions, token engine, provider, colour maths
   state/
     actions.ts        Every data change as a pure function (data in, data out)
     store.tsx         React context: state, auto-save, navigation, modals, toasts

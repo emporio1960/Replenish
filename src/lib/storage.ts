@@ -24,9 +24,10 @@ import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from './categories';
 import { isValidDay, isValidIso, today } from './dates';
 import { normalizeName } from './duplicates';
 import { uid } from './format';
+import { defaultAppearance, sanitizeAppearance } from '../theme/engine';
 
 export const STORAGE_KEY = 'replenish:data';
-export const CURRENT_VERSION = 3;
+export const CURRENT_VERSION = 4;
 
 /**
  * Persistence boundary. The app only talks to this interface, so a cloud
@@ -73,6 +74,7 @@ export function defaultSettings(): Settings {
     dateFormat: 'DD/MM/YYYY',
     time24: true,
     theme: 'system',
+    appearance: defaultAppearance(),
     budget: null,
     defaultCategoryId: OTHER_CATEGORY_ID,
     listSort: 'category',
@@ -309,6 +311,7 @@ function sanitizeSettings(raw: unknown, catIds: Set<string>, storeIds: Set<strin
     dateFormat: oneOf<DateFormat>(raw.dateFormat, ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'], d.dateFormat),
     time24: bool(raw.time24, d.time24),
     theme: oneOf<Theme>(raw.theme, ['light', 'dark', 'system'], d.theme),
+    appearance: sanitizeAppearance(raw.appearance),
     budget: typeof raw.budget === 'number' && Number.isFinite(raw.budget) && raw.budget > 0 ? raw.budget : null,
     defaultCategoryId: catIds.has(text(raw.defaultCategoryId)) ? text(raw.defaultCategoryId) : d.defaultCategoryId,
     listSort: oneOf<SortKey>(raw.listSort, ['category', 'name', 'added', 'priority'], d.listSort),
@@ -354,6 +357,10 @@ function migrate(raw: Raw): Raw {
         // Version 3 added learned category rules (and the Household essentials
         // category, which sanitizeCategories adds for existing saves).
         data = { ...data, categoryRules: data.categoryRules ?? {} };
+        break;
+      case 3:
+        // Version 4 added appearance settings (themes). Older saves get the
+        // original Replenish theme, so nothing looks different until chosen.
         break;
     }
     version += 1;

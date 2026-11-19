@@ -3,6 +3,8 @@ import { Bell, Cloud, CloudOff, Ellipsis, RefreshCw, ShoppingCart } from 'lucide
 import { ModalHost, Toasts } from './components/Modals';
 import { NAV, PRIMARY_NAV, SECONDARY_NAV } from './components/nav';
 import { StoreProvider, useStore } from './state/store';
+import { ThemeProvider } from './theme/ThemeProvider';
+import { Appearance } from './views/Appearance';
 import { Analytics } from './views/Analytics';
 import { Dashboard } from './views/Dashboard';
 import { Deferred } from './views/Deferred';
@@ -39,6 +41,7 @@ const VIEW: Record<Exclude<ViewId, 'shop'>, () => React.JSX.Element> = {
   history: History,
   analytics: Analytics,
   settings: Settings,
+  appearance: Appearance,
 };
 
 function Shell() {
@@ -66,7 +69,7 @@ function Shell() {
     deferred: data.items.filter((i) => i.status === 'deferred').length,
     recurring: data.recurring.filter((r) => !r.paused && r.nextDue <= today).length,
   };
-  const inMore = SECONDARY_NAV.some((n) => n.id === view);
+  const inMore = SECONDARY_NAV.some((n) => n.id === view) || view === 'appearance';
   const canShop = data.items.some((i) => i.status !== 'deferred');
 
   return (
@@ -76,7 +79,7 @@ function Shell() {
         <div className="brand"><Logo /> Replenish</div>
         <nav aria-label="Sections">
           {NAV.map((n) => (
-            <button key={n.id} type="button" className="nav-link" aria-current={view === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
+            <button key={n.id} type="button" className="nav-link" aria-current={view === n.id || (n.id === 'settings' && view === 'appearance') ? 'page' : undefined} onClick={() => go(n.id)}>
               <n.icon size={19} aria-hidden="true" />
               <span>{n.label}</span>
               {badge[n.id] ? <span className="nav-badge">{badge[n.id]}</span> : null}
@@ -148,7 +151,9 @@ function Shell() {
 export default function App() {
   return (
     <StoreProvider>
-      <Shell />
+      <ThemeProvider>
+        <Shell />
+      </ThemeProvider>
     </StoreProvider>
   );
 }

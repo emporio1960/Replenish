@@ -13,6 +13,17 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <title>Replenish</title>
+    <script>
+      // Paint with the saved theme straight away, before the app loads, so there is no flash.
+      try {
+        var t = JSON.parse(localStorage.getItem('replenish:theme') || 'null');
+        if (t && t.vars) {
+          var r = document.documentElement;
+          for (var k in t.vars) r.style.setProperty('--' + k, t.vars[k]);
+          for (var a in t.attrs) r.setAttribute('data-' + a, t.attrs[a]);
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

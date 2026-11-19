@@ -162,6 +162,52 @@ export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
 export type SortKey = 'category' | 'name' | 'added' | 'priority';
 export type Theme = 'light' | 'dark' | 'system';
 
+export type GradientStyle = 'linear' | 'radial' | 'atmospheric' | 'multicolour' | 'animated';
+
+/** The six colours a theme is built from, for one appearance (light or dark). */
+export interface ThemeColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  surface: string;
+  text: string;
+}
+
+/** A theme the user made. Everything else (borders, soft tints, status colours) is derived. */
+export interface CustomTheme {
+  id: string;
+  name: string;
+  light: ThemeColors;
+  dark: ThemeColors;
+  radius: number;
+  borders: 'none' | 'subtle' | 'strong';
+  gradientStyle: GradientStyle | null;
+}
+
+export type Level = 'minimal' | 'balanced' | 'vibrant';
+
+export interface AppearanceSettings {
+  /** The theme the user picked: a built-in id or a custom theme id. */
+  themeId: string;
+  customThemes: CustomTheme[];
+  /** 'auto' uses the style the theme itself prefers. */
+  gradientStyle: GradientStyle | 'auto';
+  /** How much of the interface uses gradients. */
+  gradients: 'off' | 'subtle' | 'bold';
+  /** Translucent, blurred cards. */
+  glass: 'off' | 'subtle' | 'strong';
+  /** Overall strength of shadows, ambient light and glow. */
+  intensity: Level;
+  /** Theme transitions and animated gradients. Reduced-motion always wins. */
+  animations: boolean;
+  /** Opt-in automatic themes. None of these apply unless switched on. */
+  autoTime: boolean;
+  autoSeason: boolean;
+  autoOccasion: boolean;
+  hemisphere: 'south' | 'north';
+}
+
 export interface NotificationPrefs {
   recurringDue: boolean;
   deferredReturn: boolean;
@@ -173,7 +219,9 @@ export interface Settings {
   currency: string;
   dateFormat: DateFormat;
   time24: boolean;
+  /** Appearance mode: light, dark or follow the device. Independent of the chosen theme. */
   theme: Theme;
+  appearance: AppearanceSettings;
   /** Budget for the current shopping list, or null when not set. */
   budget: number | null;
   defaultCategoryId: string;
@@ -225,4 +273,5 @@ export type ViewId =
   | 'history'
   | 'analytics'
   | 'settings'
+  | 'appearance'
   | 'shop';

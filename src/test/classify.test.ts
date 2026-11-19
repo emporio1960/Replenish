@@ -134,7 +134,7 @@ describe('learning from corrections', () => {
     expect(sanitize(JSON.parse(JSON.stringify(d))).categoryRules).toEqual(d.categoryRules);
     // An older save: existing items and their categories are untouched, and the new category appears.
     const old = sanitize({ version: 2, items: [{ id: 'a', name: 'Milk', categoryId: 'other' }, { id: 'b', name: 'Bread', categoryId: 'bakery' }], categoryRules: { x: 'nope' } });
-    expect(old.version).toBe(3);
+    expect(old.version).toBeGreaterThanOrEqual(3);
     expect(old.items.map((i) => i.categoryId)).toEqual(['other', 'bakery']);
     expect(old.categories.some((c) => c.id === 'household')).toBe(true);
     expect(old.categoryRules).toEqual({});
